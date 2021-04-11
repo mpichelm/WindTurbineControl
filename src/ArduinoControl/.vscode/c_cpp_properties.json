@@ -18,10 +18,13 @@
             "includePath": [
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\variants\\mega",
+                "C:\\Program Files (x86)\\Arduino\\libraries\\Adafruit",
+                "C:\\Program Files (x86)\\Arduino\\libraries\\DHT",
+                "C:\\Program Files (x86)\\Arduino\\libraries\\ActuadorLineal",
+                "C:\\Program Files (x86)\\Arduino\\libraries\\Metro",
                 "c:\\program files (x86)\\arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include",
                 "c:\\program files (x86)\\arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include-fixed",
-                "c:\\program files (x86)\\arduino\\hardware\\tools\\avr\\avr\\include",
-                "C:\\Program Files (x86)\\Arduino\\libraries\\**"
+                "c:\\program files (x86)\\arduino\\hardware\\tools\\avr\\avr\\include"
             ],
             "forcedInclude": [
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino\\Arduino.h"
@@ -29,7 +32,7 @@
             "cStandard": "c11",
             "cppStandard": "c++11",
             "defines": [
-                "__AVR_ATmega2560__", // Added to avoid intellisense warning with Serial1, Serial2...
+                "__AVR_ATmega2560__",
                 "F_CPU=16000000L",
                 "ARDUINO=10813",
                 "ARDUINO_AVR_MEGA2560",
