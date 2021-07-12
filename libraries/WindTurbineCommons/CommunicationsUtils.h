@@ -23,12 +23,12 @@ template <typename Type_t>
 void vSendMessage(const Type_t& dataStruct, MessageID_e msgId, Stream &serial)
 {
     /* Initialize a buffer to store message */
-    const int msgLength = sizeof(Type_t) + sizeof(MsgHeader_st) + NUM_CHECKSUM_BYTES;
+    const int msgLength = sizeof(Type_t) + sizeof(MsgHeader_st) + NUM_CHECKSUM_BYTES_UC;
     unsigned char buffer[msgLength];
     unsigned int bufferPosition = 0;
 
     /* Insert header */
-    MsgHeader_st msgHeader = {MESSAGE_PREAMBLE, msgId, msgLength};
+    MsgHeader_st msgHeader = {MESSAGE_PREAMBLE_UL, msgId, msgLength};
     memcpy(buffer, msgHeader, sizeof(MsgHeader_st));
     bufferPosition += sizeof(MsgHeader_st);
 
@@ -58,7 +58,7 @@ Type_t vComposeStruct(const unsigned char* buffer, const unsigned int length)
 
     /* Compose the structure */
     Type_t outputData = {};
-    memcpy(outputData, buffer, sizeof(Type_t))
+    memcpy(outputData, buffer, sizeof(Type_t));
 
     /* Return the data */
     return outputData;

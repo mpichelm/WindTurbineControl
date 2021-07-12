@@ -313,12 +313,12 @@ void vBladePitchControl()
 			clPitchControlServo_.SetExtensionPorcentaje(stControlParams_.fBladePitchPercentage);
 		}
 		/* Automatic pitch control */
-		else (stControlParams_.ePitchMode == PITCHMODE_AUTO) 
+		else if(stControlParams_.ePitchMode == PITCHMODE_AUTO) 
 		{ 
 			/* Compute the angle of the aerodynaimc velocity wrt rotor disc */
 			float fAlphaWind = 0.0;
 			
-			// Si no tenemos viento, tampoco tendremos rpm, y tendr�amos una indeterminaci�n
+			/* If there is no wind, rpm should be 0, so there would be an indetermination */
 			if (stAeroData_.fWindSpeed < 1)
 			{ 
 				fAlphaWind = PI / 2;
@@ -328,7 +328,7 @@ void vBladePitchControl()
 			else
 			{
 				// TODO: review this
-				fAlphaWind = atan(stAeroData_.fWindSpeed * 30 / PI / rpmAerogenerador / 0.33);
+				fAlphaWind = atan(stAeroData_.fWindSpeed * 30 / PI / /*rpmAerogenerador /*/ 0.33);
 			} 
 				
 			/* The angle we have to rotate the blade is the angle of the wind less the torsion angle

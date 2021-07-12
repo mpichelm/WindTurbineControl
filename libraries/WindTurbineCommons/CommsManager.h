@@ -34,7 +34,7 @@ public:
     * \tparam Type_t: Type for the structure to be sent
     ***********************************************************************************************/
     template <typename Type_t>
-    void vSendMessage(const Type_t& tDataStruct, MessageID_e eMsgId, Stream &clSerial)
+    void vSendMessage(const Type_t& tDataStruct, MessageID_e eMsgId, Stream& clSerial)
     {
         /* Initialize a buffer to store message */
         const unsigned int ulMsgLength = sizeof(Type_t) + sizeof(MsgHeader_st) + NUM_CHECKSUM_BYTES_UC;
@@ -55,7 +55,7 @@ public:
         memcpy(aucBuffer + ulBufferPosition, &slChecksum, sizeof(int));
 
         /* Send data */
-        serial.write(aucBuffer, ulMsgLength);
+        clSerial.write(aucBuffer, ulMsgLength);
     }
 
     /****************************************** FUNCTION ***************************************//**
@@ -106,7 +106,7 @@ private:
         {
             /* Compose the structure */
             Type_t tOutputData = {};
-            memcpy(&tOutputData, pucBuffer, sizeof(Type_t))
+            memcpy(&tOutputData, pucBuffer, sizeof(Type_t));
         }
 
         /* Return the data */
