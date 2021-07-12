@@ -43,7 +43,7 @@ public:
 
         /* Insert header */
         MsgHeader_st stMsgHeader = {MESSAGE_PREAMBLE_UL, eMsgId, ulMsgLength};
-        memcpy(aucBuffer, stMsgHeader, sizeof(MsgHeader_st));
+        memcpy(aucBuffer, &stMsgHeader, sizeof(MsgHeader_st));
         ulBufferPosition += sizeof(MsgHeader_st);
 
         /* Insert message body */
@@ -51,7 +51,7 @@ public:
         ulBufferPosition += sizeof(Type_t);
 
         /* Insert checksum (message body only) */
-        int slChecksum = ModRTU_CRC(aucBuffer + sizeof(MsgHeader_st), sizeof(Type_t));
+        int slChecksum = slModRTU_CRC(aucBuffer + sizeof(MsgHeader_st), sizeof(Type_t));
         memcpy(aucBuffer + ulBufferPosition, &slChecksum, sizeof(int));
 
         /* Send data */

@@ -10,7 +10,6 @@
 #include "Constants.h"
 #include "CommonConstants.h"
 #include "CommonTypes.h"
-#include "CommunicationsUtils.h"
 #include "CommsManager.h"
 
 /******************************************** GLOBALS *********************************************/
@@ -126,7 +125,7 @@ void vSendDataHC12()
 	/* Check if it is time to send new data */
 	if (clSenderHC12Timer_.check()) 
 	{
-		vSendMessage(stAeroData_, MESSAGEID_AERODATA, &Serial1);
+		clCommsManager_.vSendMessage(stAeroData_, MESSAGEID_AERODATA, Serial1);
 	}
 }
 
@@ -140,7 +139,7 @@ void vReadDataHC12()
 	MessageID_e eMsgID = MESSAGEID_COUNT;
 
 	/* Check if it is time to send new data */
-	while (clCommsManager_.bReadInputMessage(&Serial1, aucReadingBuf_, ulMsgLength, eMsgID))
+	while (clCommsManager_.bReadInputMessage(Serial1, aucReadingBuf_, ulMsgLength, eMsgID))
 	{
 		/* Copy the buffer to the message */
 		if ((eMsgID == MESSAGEID_CONTROLPARAMS) && (ulMsgLength == sizeof(ControlParams_st)))
@@ -150,7 +149,7 @@ void vReadDataHC12()
 	}
 	if (clSenderHC12Timer_.check()) 
 	{
-		vSendMessage(stAeroData_, MESSAGEID_AERODATA, &Serial1);
+		clCommsManager_.vSendMessage(stAeroData_, MESSAGEID_AERODATA, Serial1);
 	}
 }
 
@@ -159,8 +158,9 @@ void vReadDataHC12()
 ***************************************************************************************************/
 void vReadDHT22Sensor() {
 
-	// Leeremos la temperatura y humedad cada cierto tiempo
-	if (clReadDHT22Timer_.check()) {
+	/* Read temperature and humidity */
+	if (clReadDHT22Timer_.check()) 
+	{
 		stAeroData_.fTempCelsius = clTempHRSensor_.readTemperature();
 		stAeroData_.fRelHumidity = clTempHRSensor_.readHumidity();
 	}
