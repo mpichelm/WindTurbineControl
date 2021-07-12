@@ -8,10 +8,10 @@
 
 /* Custom includes */
 #include "Constants.h"
-#include "../Common/CommonConstants.h"
-#include "../Common/CommonTypes.h"
-#include "../Common/CommunicationsUtils.h"
-#include "../Common/CommsManager.h"
+#include "CommonConstants.h"
+#include "CommonTypes.h"
+#include "CommunicationsUtils.h"
+#include "CommsManager.h"
 
 /******************************************** GLOBALS *********************************************/
 /* Communications variables */

@@ -22,6 +22,7 @@
                 "C:\\Program Files (x86)\\Arduino\\libraries\\DHT",
                 "C:\\Program Files (x86)\\Arduino\\libraries\\ActuadorLineal",
                 "C:\\Program Files (x86)\\Arduino\\libraries\\Metro",
+                "C:\\Program Files (x86)\\Arduino\\libraries\\WindTurbineCommons",
                 "c:\\program files (x86)\\arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include",
                 "c:\\program files (x86)\\arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include-fixed",
                 "c:\\program files (x86)\\arduino\\hardware\\tools\\avr\\avr\\include"
