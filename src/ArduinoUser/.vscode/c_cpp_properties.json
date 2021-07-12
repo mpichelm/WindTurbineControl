@@ -32,7 +32,6 @@
             "cStandard": "c11",
             "cppStandard": "c++11",
             "defines": [
-                "__AVR_ATmega2560__", // Added to avoid intellisense warning with Serial1, Serial2...
                 "F_CPU=16000000L",
                 "ARDUINO=10813",
                 "ARDUINO_AVR_MEGA2560",

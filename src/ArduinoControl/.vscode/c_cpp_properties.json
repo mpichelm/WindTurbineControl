@@ -32,7 +32,6 @@
             "cStandard": "c11",
             "cppStandard": "c++11",
             "defines": [
-                "__AVR_ATmega2560__",
                 "F_CPU=16000000L",
                 "ARDUINO=10813",
                 "ARDUINO_AVR_MEGA2560",
@@ -534,7 +533,8 @@
                 "__cpp_init_captures=201304",
                 "__ATOMIC_ACQ_REL=4",
                 "__ATOMIC_RELEASE=3",
-                "__BUILTIN_AVR_FMUL=1"
+                "__BUILTIN_AVR_FMUL=1",
+                "USBCON"
             ]
         }
     ]
