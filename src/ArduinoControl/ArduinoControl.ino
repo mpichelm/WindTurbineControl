@@ -5,12 +5,13 @@
 #include <DHT_U.h>
 #include <ActuadorLineal.h>
 #include <Metro.h>
-
-/* Custom includes */
-#include "Constants.h"
 #include "CommonConstants.h"
 #include "CommonTypes.h"
 #include "CommsManager.h"
+
+/* Custom includes */
+#include "Constants.h"
+
 
 /******************************************** GLOBALS *********************************************/
 /* Communications variables */
@@ -146,10 +147,6 @@ void vReadDataHC12()
 		{
 			memcpy(&stControlParams_, aucReadingBuf_, ulMsgLength);
 		}
-	}
-	if (clSenderHC12Timer_.check()) 
-	{
-		clCommsManager_.vSendMessage(stAeroData_, MESSAGEID_AERODATA, Serial1);
 	}
 }
 
