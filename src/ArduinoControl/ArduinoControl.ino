@@ -43,11 +43,15 @@ unsigned long ullBreakManeouverStartTimeMs_ = 0; /**< Start time for a retractio
 unsigned long ullAnemometerLastTimeMs = 0;
 unsigned long ullTacometerLastTimeMs = 0;
 
-
 /****************************************** FUNCTION *******************************************//**
 * \brief Setup function for the Arduino board
 ***************************************************************************************************/
-void setup() {
+void setup() 
+{
+	/* Serial port initialization */
+	delay(HC12_INITIALIZATION_DELAY_MS_UL); /* Initial delay necessary for the HC12 module */
+	Serial.begin(BAUD_RATE); /* Initialization of serial port with the PC */
+	Serial1.begin(BAUD_RATE); /* Initialization of serial port with the HC12 module */
 
 	/* Set input/output pins */
 	pinMode(HC12_MODE_PIN, OUTPUT); 
@@ -58,13 +62,8 @@ void setup() {
 	pinMode(DHT_22_PIN, INPUT);
 
 	/* Initialization of the pitch control servo */
-	clPitchControlServo_ = ActuadorLineal(BLADE_RETRACTION_PIN, BLADE_EXTENSION_PIN, TACOMETER_HALL_PIN,
-							 SERVO_LENGHT_MM, SERVO_USABLE_LENGTH_MM, SERVO_TURNS_TO_FULL_EXTENSION); 
-
-	/* Serial port initialization */
-	delay(HC12_INITIALIZATION_DELAY_MS_UL); /* Initial delay necessary for the HC12 module */
-	Serial.begin(BAUD_RATE); /* Initialization of serial port with the PC */
-	Serial1.begin(BAUD_RATE); /* Initialization of serial port with the HC12 module */
+	clPitchControlServo_ = ActuadorLineal(BLADE_RETRACTION_PIN, BLADE_EXTENSION_PIN, SERVO_HALL_PIN,
+	 						 SERVO_LENGHT_MM, SERVO_USABLE_LENGTH_MM, SERVO_TURNS_TO_FULL_EXTENSION); 
 
 	/* Initialization of the DHT22 Initialization of the DHT22 sensor (temperature and humidity) */
 	clTempHRSensor_.begin();
@@ -89,8 +88,8 @@ void setup() {
 /****************************************** FUNCTION *******************************************//**
 * \brief Loop function for the Arduino board
 ***************************************************************************************************/
-void loop() {
-
+void loop() 
+{
 	/* Read incoming data from the used Arduino */
 	vReadDataHC12();
 
@@ -98,7 +97,7 @@ void loop() {
 	vReadDHT22Sensor();
 
 	/* Read current wind speed and compute average wind speed */
-	// TODO: read current wind speed
+	stAeroData_.fWindSpeed = 5; // TODO: read current wind speed
 	vAverageWindSpeed();
 
 	/* Read rotor speed */
@@ -106,10 +105,10 @@ void loop() {
 
 	/* Break control */ 
 	breakManagement(); /* Check for new necessary operations */
-	vFinishActuatorManoeuver(); /* Finish active operations, if necessary */
+	vFinishBreakManoeuver(); /* Finish active operations, if necessary */
 
-	// // Controlamos el paso
-	// controlarPasoPalas();
+	/* Pitch control */
+	vBladePitchControl();
 
 	/* Send current turbine data to the user Arduino */
 	vSendDataHC12();	
@@ -122,6 +121,17 @@ void loop() {
 void vSendDataHC12() 
 {
 	// TODO: break status used to be updated here
+
+	// Serial.println("-------");
+	// Serial.println("Average wind = " + (String)stAeroData_.fAverageWindSpeed);
+	// Serial.println("Blade percent = " + (String)stAeroData_.fBladePitchPercentage);
+	// Serial.println("Rel humidity = " + (String)stAeroData_.fRelHumidity);
+	// Serial.println("Rotor speed = " + (String)stAeroData_.fRotorSpeedRPM);
+	// Serial.println("Temp celsius = " + (String)stAeroData_.fTempCelsius);
+	// Serial.println("Wind speed = " + (String)stAeroData_.fWindSpeed);
+	// Serial.println("Break status = " + (String)stAeroData_.stStatus.eBreakStatus);
+	// Serial.println("Pitch mode = " + (String)stAeroData_.stStatus.ePitchMode);
+	// Serial.println("-------");
 
 	/* Check if it is time to send new data */
 	if (clSenderHC12Timer_.check()) 
@@ -142,10 +152,19 @@ void vReadDataHC12()
 	/* Check if it is time to send new data */
 	while (clCommsManager_.bReadInputMessage(Serial1, aucReadingBuf_, ulMsgLength, eMsgID))
 	{
+		Serial.println("Recibido: " + (String)ulMsgLength + "  ID: " + (String)eMsgID);
 		/* Copy the buffer to the message */
 		if ((eMsgID == MESSAGEID_CONTROLPARAMS) && (ulMsgLength == sizeof(ControlParams_st)))
 		{
 			memcpy(&stControlParams_, aucReadingBuf_, ulMsgLength);
+
+			Serial.println("-------");
+			Serial.println("Manual break = " + (String)stControlParams_.bManualBreak);
+			Serial.println("Pitch mode = " + (String)stControlParams_.ePitchMode);
+			Serial.println("pitch percent = " + (String)stControlParams_.fBladePitchPercentage);
+			Serial.println("max rotor speed = " + (String)stControlParams_.fMaxRotorSpeedRPM);
+			Serial.println("max wind speed = " + (String)stControlParams_.fMaxWindSpeed);
+			Serial.println("-------");
 		}
 	}
 }
@@ -263,9 +282,9 @@ void vReleaseBreak()
 }
 
 /****************************************** FUNCTION *******************************************//**
-* \brief This method checks if the actuator maneouver must be ended
+* \brief This method checks if the break actuator maneouver must be ended
 ***************************************************************************************************/
-void vFinishActuatorManoeuver() 
+void vFinishBreakManoeuver() 
 {
 	/* Check if it is time to stop the actuator and finish break manoeuver */
 	if (stAeroData_.stStatus.eBreakStatus == BREAK_BREAKING &&

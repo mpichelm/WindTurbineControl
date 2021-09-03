@@ -178,10 +178,11 @@ void vReadUserInputs()
 		}
 
 		/* Pitch control mode reading */
-		if (ulLastPitchModeReading_ != digitalRead(PITCH_CONTROL_SWITCH_PIN_UL)) 
+		int switchReading = digitalRead(PITCH_CONTROL_SWITCH_PIN_UL);
+		if (ulLastPitchModeReading_ != switchReading) 
 		{
-			stControlParams_.ePitchMode = static_cast<PitchMode_e>(PITCH_CONTROL_SWITCH_PIN_UL);
-			ulLastPitchModeReading_ = stControlParams_.ePitchMode;
+			stControlParams_.ePitchMode = static_cast<PitchMode_e>(switchReading);
+			ulLastPitchModeReading_ = switchReading;
 		}
 	}
 }
@@ -271,7 +272,8 @@ void vRefreshScreen()
 
 		/* Update variable step mode */
 		clLCD_.setCursor(5, 3);
-		if (stAeroData_.stStatus.ePitchMode == PITCHMODE_MANUAL) {
+		if (stAeroData_.stStatus.ePitchMode == PITCHMODE_MANUAL) 
+		{
 			clLCD_.print("manual"); 	
 		}
 		else 
@@ -281,6 +283,7 @@ void vRefreshScreen()
 
 		/* Update blade pitch percentage. Convert to a char[]. We want 3 digits with no comma or
 		sign */
+		Serial.println("lcd pitch: " + (String)stAeroData_.fBladePitchPercentage);
 		dtostrf(stAeroData_.fBladePitchPercentage, 3, 0, scAuxText); 
 		clLCD_.setCursor(14, 3);
 		clLCD_.print(scAuxText[0]); /**< hundreds */
@@ -294,6 +297,14 @@ void vRefreshScreen()
 ***************************************************************************************************/
 void vSendDataHC12() 
 {
+	Serial.println("-------");
+	Serial.println("Manual break = " + (String)stControlParams_.bManualBreak);
+	Serial.println("Pitch mode = " + (String)stControlParams_.ePitchMode);
+	Serial.println("pitch percent = " + (String)stControlParams_.fBladePitchPercentage);
+	Serial.println("max rotor speed = " + (String)stControlParams_.fMaxRotorSpeedRPM);
+	Serial.println("max wind speed = " + (String)stControlParams_.fMaxWindSpeed);
+	Serial.println("-------");
+
 	/* Check if it is time to send new data */
 	if (clSenderHC12Timer_.check()) 
 	{
