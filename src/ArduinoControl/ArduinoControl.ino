@@ -43,6 +43,7 @@ unsigned long ullBreakManeouverStartTimeMs_ = 0; /**< Start time for a retractio
 unsigned long ullAnemometerLastTimeMs = 0;
 unsigned long ullTacometerLastTimeMs = 0;
 
+
 /****************************************** FUNCTION *******************************************//**
 * \brief Setup function for the Arduino board
 ***************************************************************************************************/
@@ -97,11 +98,11 @@ void loop()
 	vReadDHT22Sensor();
 
 	/* Read current wind speed and compute average wind speed */
-	stAeroData_.fWindSpeed = 5; // TODO: read current wind speed
+	stAeroData_.fWindSpeed = 5; // TODO: remove dummy value
 	vAverageWindSpeed();
 
 	/* Read rotor speed */
-	stAeroData_.fRotorSpeedRPM = 15; // TODO: real actual data
+	stAeroData_.fRotorSpeedRPM = 15; // TODO: remove dummy value
 
 	/* Break control */ 
 	breakManagement(); /* Check for new necessary operations */
@@ -111,7 +112,7 @@ void loop()
 	vBladePitchControl();
 
 	/* Send current turbine data to the user Arduino */
-	vSendDataHC12();	
+	vSendDataHC12();
 }
 
 
@@ -339,18 +340,26 @@ void vBladePitchControl()
 			{ 
 				fAlphaWind = PI / 2;
 			}
-			/* Compute for a section at 0.3 adimensional distance (aprox 33 cm) from the root. 
-			Convert to rad/s */
+			/* Compute angle os aerodinamic speed for a section at 0.3 adimensional distance 
+			(aprox 33 cm) from the root. */
 			else
 			{
-				// TODO: review this
-				fAlphaWind = atan(stAeroData_.fWindSpeed * 30 / PI / /*rpmAerogenerador /*/ 0.33);
+				/* Wind angle (composed from incident wind and blade rotation) relativo to the
+				plane of blade rotation */
+				fAlphaWind = atan2(stAeroData_.fWindSpeed,
+								   stAeroData_.fRotorSpeedRPM * RPM_TO_RADSEC_F * 0.33 );
 			} 
 				
 			/* The angle we have to rotate the blade is the angle of the wind less the torsion angle
 			and less the angle to operate at maximum aerodynamic efficiency */
 			float fBetaAngle = fAlphaWind - 22 * PI / 180; /* Torsion angle at section 0.3 is 12.75 deg. Angle of max efficiency is 9.25 deg. Total is 22 */
-			// TODO: relation betwen angle and actuator extension
+			float fActuatorExtensionPercent = 
+				tInterp1D<float, PITCH_ANGLE_CALIBRATION_POINTS_UC>(PITCH_CONTROL_BETA_ANGLE_F, 
+																	PITCH_CONTROL_EXTENSION_F, 
+																	fBetaAngle);
+			
+			/* Command actuator extension */
+			clPitchControlServo_.SetExtensionPorcentaje(fActuatorExtensionPercent);
 		}
 	}
 	
@@ -366,9 +375,15 @@ void vReadAnemometerHallSensor()
 	/* This if avoids reading several times the same magnet pass */ 
 	if (millis() - ullAnemometerLastTimeMs > HALL_MIN_DELAY_MS_ULL) 
 	{
-		// TODO: review
-		float fAnemAngularSpeed = 2 * PI / 3 / (millis() - ullAnemometerLastTimeMs) * MILLIS_TO_SECONDS_F; 
-		stAeroData_.fWindSpeed = fAnemAngularSpeed; // TODO: find anemometer calibration factor to convert angular speed to wind speed
+		/* Get the angular speed of the anemometer and convert to wind speed */
+		float fAnemAngularSpeed = 2 * PI / TACOMETER_NUM_MAGNETS / 
+								  (millis() - ullAnemometerLastTimeMs) / MILLIS_TO_SECONDS_F; 
+		stAeroData_.fWindSpeed = 
+			tInterp1D<float, ANEM_CALIBRATION_POINTS_UC>(ANEM_CALIBRATION_ANGULAR_SPEED_DATA_F,
+										   				 ANEM_CALIBRATION_WIND_DATA_F,
+										   				 fAnemAngularSpeed);
+
+		/* Update time of last reading */
 		ullAnemometerLastTimeMs = millis();
 	}
 }
@@ -381,10 +396,47 @@ void vReadTacometerHallSensor()
 	/* This if avoids reading several times the same magnet pass */ 
 	if (millis() - ullTacometerLastTimeMs > HALL_MIN_DELAY_MS_ULL) 
 	{
-		// TODO: review
-		float fRotorAngularSpeed = 2 * PI / 3 / (millis() - ullTacometerLastTimeMs) * MILLIS_TO_SECONDS_F;
+		/* Get the angular speed of the tacometer */
+		float fRotorAngularSpeed = 2 * PI / ANEMOMETER_NUM_MAGNETS / 
+								   (millis() - ullTacometerLastTimeMs) / MILLIS_TO_SECONDS_F;
+
+		/* Update time of last reading */
 		ullTacometerLastTimeMs = millis();
 	}
+}
+
+/****************************************** FUNCTION *******************************************//**
+* \brief 1D linear interpolation/extrapolation
+* \tparam Type_t: Type for the data to interpolate
+* \tparam ulDataLength: Length of array of data to interpolate
+* \param[in] atX: X coordinates of the interpolation function y=f(x)
+* \param[in] atY: Value of the interpolation function in the atX points
+* \param[in] tQueryX: Query point where the function wants to be known
+* \return Value of the function at the query point
+* \warning Values in atX must be sorted from lower to higher and values cannot repeat
+***************************************************************************************************/
+template<typename Type_t, unsigned int ulDataLength>
+Type_t tInterp1D(const Type_t atX[ulDataLength], const Type_t atY[ulDataLength], const Type_t tQueryX)
+{
+	/* Find the index of the data that is right before the query point */
+	char scPrevIndex = 0;
+	for(scPrevIndex = 0; scPrevIndex < ulDataLength; scPrevIndex++)
+	{
+		if(tQueryX <= atX[scPrevIndex])
+		{
+			scPrevIndex = scPrevIndex - 1;
+			break;
+		}
+	}
+
+	/* The index can not be lower than 0 and greater than (ulDataLength-2) */
+	scPrevIndex = min(max(0, scPrevIndex), ulDataLength-2);
+
+	/* Perform linear interpolation using the previous and next point */
+	Type_t tSlope = (atY[scPrevIndex+1] - atY[scPrevIndex]) / ((atX[scPrevIndex+1] - atX[scPrevIndex]));
+	Type_t tResult = atY[scPrevIndex] + tSlope * (tQueryX - atX[scPrevIndex]);
+
+	return tResult;
 }
 
 
