@@ -27,7 +27,7 @@ const unsigned long HALL_MIN_DELAY_MS_ULL           = 2;  /**< Minimum time (mil
 
 /* COMMUNICATIONS CONSTANTS */
 const float COMMS_PERIOD_MS = 500.0; /**< Period for the communications loop  */
-const int BAUD_RATE         = 9600;  /**< Baud rate for serial communications */
+const int   BAUD_RATE       = 9600;  /**< Baud rate for serial communications */
 
 /* TEMPERATURE/HUMIDITY SENSORS */
 const float READ_PERIOD_MS = 10000.0; /**< Time interval between data measurements */
