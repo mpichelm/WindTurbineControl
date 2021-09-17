@@ -5,6 +5,7 @@
 #include <CommonConstants.h>
 #include <CommonTypes.h>
 #include <CommsManager.h>
+#include <Metro.h>
 
 /* Custom includes */
 
@@ -12,13 +13,14 @@
 /******************************************* CONSTANTS ********************************************/
 
 /* WIFI */
-const int CLIENT_TIMEOUT_MS_UL                    = 200;   /**< Milliseconds to consider a client disconnected */
-const int WIFI_RECONNECT_PERIOD_MS_UL             = 10000; /**< Milliseconds until finding Wifi networks again */
-const int SERVER_PORT_UL                          = 80;    /**< Default port                                   */
-const unsigned char NUM_WIFI_NETWORKS             = 2;     /**< Number of known wifi networks                  */
-const std::string WIFI_SSID_AS[NUM_WIFI_NETWORKS] =        /**< SSID of known wifi networks                    */
-                {"MOVISTAR_A90E", "FTE-A458"};        
-const std::string WIFI_PASS_AS[NUM_WIFI_NETWORKS] =        /**< Password for known wifi networks               */
+const int CLIENT_TIMEOUT_MS_UL                    = 200;   /**< Milliseconds to consider a client disconnected      */
+const int WIFI_RECONNECT_PERIOD_MS_UL             = 10000; /**< Milliseconds until finding Wifi networks again      */
+const int SERIAL_DATA_SEND_PERIOD_MS_UL           = 500;   /**< Milliseconds to send data again through serial port */
+const int SERVER_PORT_UL                          = 80;    /**< Default port                                        */
+const unsigned char NUM_WIFI_NETWORKS             = 2;     /**< Number of known wifi networks                       */
+const std::string WIFI_SSID_AS[NUM_WIFI_NETWORKS] =        /**< SSID of known wifi networks                         */
+                {"MOVISTAR_A90E", "FTE-A458"};             
+const std::string WIFI_PASS_AS[NUM_WIFI_NETWORKS] =        /**< Password for known wifi networks                    */
                 {"e7dp6UHXQTuPR3Eye3Q3", "XXsrd7mc"};
 
 /* COMMUNICATIONS CONSTANTS */
@@ -36,9 +38,10 @@ const unsigned int MAX_MSG_SIZE_UL_ = sizeof(ControlParams_st) > sizeof(AeroData
 									 sizeof(ControlParams_st) : sizeof(AeroData_st);
 unsigned char aucReadingBuf_[MAX_MSG_SIZE_UL_];
 
-WiFiServer clServer(SERVER_PORT_UL); /**< Instance for the wifi server                    */
-WiFiClient clClient; 				 /**< Class to manage clients connected to the server */ 
-CommsManager_cl clCommsManager_;	 /**< Manager to communicate with the Arduino         */
+WiFiServer clServer(SERVER_PORT_UL); 							   /**< Instance for the wifi server                    */
+WiFiClient clClient; 				 							   /**< Class to manage clients connected to the server */ 
+CommsManager_cl clCommsManager_;	 							   /**< Manager to communicate with the Arduino         */
+Metro clSenderSerialTimer_ = Metro(SERIAL_DATA_SEND_PERIOD_MS_UL); /**< Timer to send messages through serial port      */
 
 
 /****************************************** FUNCTION *******************************************//**
@@ -62,14 +65,17 @@ void loop()
 	/* Read messages received from Serial port */
 	vReadSerialArduino();
 
+	/* Send data serial port */
+	vSendDataArduinoSerial();
+
 	/* Read data from Android */
 	if (bCheckWifiClient())
 	{
 		void vReadAndroid();
-	} 
 
-	/* Send data to the Android app */
-	clClient.print(sBuildMsgToAndroid());
+		/* Send data to the Android app */
+		clClient.print(sBuildMsgToAndroid());
+	} 
 }
 
 /****************************************** FUNCTION *******************************************//**
@@ -145,6 +151,10 @@ void vReadSerialArduino()
 		if ((eMsgID == MESSAGEID_AERODATA) && (ulMsgLength == sizeof(AeroData_st)))
 		{
 			memcpy(&stAeroData_, aucReadingBuf_, ulMsgLength);
+		}
+		else if ((eMsgID == MESSAGEID_CONTROLPARAMS) && (ulMsgLength == sizeof(ControlParams_st)))
+		{
+			memcpy(&stControlParams_, aucReadingBuf_, ulMsgLength);
 		}
 	}
 }
@@ -286,4 +296,16 @@ String sBuildMsgToAndroid()
 	/* Add message end */
 	sMsg += "</html>\n";
 	return sMsg;
+}
+
+/****************************************** FUNCTION *******************************************//**
+* \brief Method that sends information to the Arduino User trough Serial port
+***************************************************************************************************/
+void vSendDataArduinoSerial() 
+{
+	/* Check if it is time to send new data */
+	if (clSenderSerialTimer_.check()) 
+	{
+		clCommsManager_.vSendMessage(stControlParams_, MESSAGEID_CONTROLPARAMS, Serial1);
+	}
 }

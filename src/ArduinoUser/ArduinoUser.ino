@@ -27,28 +27,28 @@ Metro clLCDTimer_ = Metro(LCD_REFRESH_TIME_MS_UL); /**< LCD refresh timer       
 Metro clSenderHC12Timer_ = Metro(HC12_SEND_PERIOD_MS_UL); /**< HC12 timer to send messages */
 
 /* ESP8266 wifi module */
-Metro comunicacionESP8266Timer = Metro(ESP8266_SEND_PERIOD_MS_UL);  /**< ESP8266 timer to send messages */
+Metro clSenderESP8266Timer = Metro(ESP8266_SEND_PERIOD_MS_UL);  /**< ESP8266 timer to send messages */
 
 /* Communications variables */
 const unsigned int MAX_MSG_SIZE_UL_ = sizeof(ControlParams_st) > sizeof(AeroData_st) ? 
 									  sizeof(ControlParams_st) : sizeof(AeroData_st);
 unsigned char aucReadingBuf_[MAX_MSG_SIZE_UL_];
 CommsManager_cl clCommsManager_;
-unsigned int lastEsp8266Time_ = -ANDROID_TIMEOUT_MS_UL; /**< Time of the last message received from the wifi module */
+unsigned long ulLastEsp8266Time_ = -ANDROID_TIMEOUT_MS_UL; /**< Time of the last message received from the wifi module */
 
 /* Auxiliary variables */
-bool bLastBreakSwitchReading_ =  0; /* Variable to hold last reading of break switch        */
-int ulLastMaxRPMReading_      = -1; /* Variable to hold last reading of RPM potentiometer   */
-int ulLastMaxWindReading_     = -1; /* Variable to hold last reading of wind potentiometer  */
-int ulLastPitchReading_       = -1; /* Variable to hold last reading of pitch potentiometer */
-int ulLastPitchModeReading_   = -1; /* Variable to hold las reading of pitch mode switch    */
+bool bLastBreakSwitchReading_ =  0; /**< Variable to hold last reading of break switch        */
+int ulLastMaxRPMReading_      = -1; /**< Variable to hold last reading of RPM potentiometer   */
+int ulLastMaxWindReading_     = -1; /**< Variable to hold last reading of wind potentiometer  */
+int ulLastPitchReading_       = -1; /**< Variable to hold last reading of pitch potentiometer */
+int ulLastPitchModeReading_   = -1; /**< Variable to hold las reading of pitch mode switch    */
 
 
 /****************************************** FUNCTION *******************************************//**
 * \brief Setup function for the Arduino board
 ***************************************************************************************************/
-void setup() {
-
+void setup() 
+{
 	/* Start LCD screen */
 	clLCD_.begin();
 	clLCD_.backlight();
@@ -119,7 +119,7 @@ void vMasterTransitionManagement()
 {
 	/* Check time from the last message received from the ESP8266. If it is over a specific 
 	threshold, give control to Arduino */
-	if (millis() - lastEsp8266Time_ > ANDROID_TIMEOUT_MS_UL) 
+	if (millis() - ulLastEsp8266Time_ > ANDROID_TIMEOUT_MS_UL) 
 	{
 		eUserMaster_ = USERMASTER_ARDUINO; 
 	}
@@ -210,10 +210,24 @@ void vReadDataHC12()
 /****************************************** FUNCTION *******************************************//**
 * \brief Method that reads data coming from the ESP8266 wifi module
 ***************************************************************************************************/
-// M�todo que se encarga de leer un mensaje recibido a trav�s del puerto Serial2 procedente del ESP8266
 void vReadDataESP8266() 
 {
+	/* Create a variable for the message length and other one for the message ID */
+	unsigned int ulMsgLength = 0;
+	MessageID_e eMsgID = MESSAGEID_COUNT;
 
+	/* Check if there is input data */
+	while (clCommsManager_.bReadInputMessage(Serial2, aucReadingBuf_, ulMsgLength, eMsgID))
+	{
+		/* Copy the buffer to the message */
+		if ((eMsgID == MESSAGEID_CONTROLPARAMS) && (ulMsgLength == sizeof(AeroData_st)))
+		{
+			memcpy(&stControlParams_, aucReadingBuf_, ulMsgLength);
+
+			/* Update reception time of last message */
+			ulLastEsp8266Time_ = millis();
+		}
+	}
 }
 
 /****************************************** FUNCTION *******************************************//**
@@ -317,7 +331,19 @@ void vSendDataHC12()
 ***************************************************************************************************/
 void vSendDataESP8266() 
 {
+	/* Check if it is time to send new data */
+	if (clSenderESP8266Timer.check()) 
+	{
+		/* Send Aero data comming from the Arduino control */
+		clCommsManager_.vSendMessage(stAeroData_, MESSAGEID_AERODATA, Serial2);
 
+		/* If the Arduino is the master, send the current control params to the Wifi module, just to
+		show them as the default values for the fields of the IHM */
+		if (eUserMaster_ == USERMASTER_ARDUINO)
+		{
+			clCommsManager_.vSendMessage(stControlParams_, MESSAGEID_CONTROLPARAMS, Serial2);
+		}
+	}
 }
 
 /****************************************** FUNCTION *******************************************//**
