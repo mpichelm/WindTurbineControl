@@ -24,8 +24,10 @@ const std::string WIFI_PASS_AS[NUM_WIFI_NETWORKS] =        /**< Password for kno
                 {"e7dp6UHXQTuPR3Eye3Q3", "XXsrd7mc"};
 
 /* COMMUNICATIONS CONSTANTS */
-const int BAUD_RATE = 9600;        /**< Baud rate for serial communications */
-const char MSG_DELIMITER_SC = ';'; /**< Delimiter between different values in a string message */
+const int BAUD_RATE         = 9600; /**< Baud rate for serial communications                    */
+const char MSG_DELIMITER_SC = ';';  /**< Delimiter between different values in a string message */
+const char MSG_START_SC     = '[';  /**< Character to indicate the start of a http message      */
+const char MSG_END_SC       = ']';  /**< Character to indicate the start of a http message      */
 
 
 /******************************************** GLOBALS *********************************************/
@@ -38,10 +40,9 @@ const unsigned int MAX_MSG_SIZE_UL_ = sizeof(ControlParams_st) > sizeof(AeroData
 									 sizeof(ControlParams_st) : sizeof(AeroData_st);
 unsigned char aucReadingBuf_[MAX_MSG_SIZE_UL_];
 
-WiFiServer clServer(SERVER_PORT_UL); 							   /**< Instance for the wifi server                    */
-WiFiClient clClient; 				 							   /**< Class to manage clients connected to the server */ 
-CommsManager_cl clCommsManager_;	 							   /**< Manager to communicate with the Arduino         */
-Metro clSenderSerialTimer_ = Metro(SERIAL_DATA_SEND_PERIOD_MS_UL); /**< Timer to send messages through serial port      */
+WiFiServer clServer_(SERVER_PORT_UL); 							   /**< Instance for the wifi server               */
+CommsManager_cl clCommsManager_;	 							   /**< Manager to communicate with the Arduino    */
+Metro clSenderSerialTimer_ = Metro(SERIAL_DATA_SEND_PERIOD_MS_UL); /**< Timer to send messages through serial port */
 
 
 /****************************************** FUNCTION *******************************************//**
@@ -50,11 +51,12 @@ Metro clSenderSerialTimer_ = Metro(SERIAL_DATA_SEND_PERIOD_MS_UL); /**< Timer to
 void setup() 
 {
 	/* Serial port initialization */
-	Serial.begin(BAUD_RATE);
+	//Serial.begin(BAUD_RATE);
+	Serial.begin(115200);
 	delay(10);
 
-	/* Connect to WIFI network */
-	vWifiConnect();
+	 /* Connect to WIFI network */
+	 vWifiConnect();
 }
 
 /****************************************** FUNCTION *******************************************//**
@@ -62,40 +64,41 @@ void setup()
 ***************************************************************************************************/
 void loop() 
 {
-	/* Read messages received from Serial port */
-	vReadSerialArduino();
+	// /* Read messages received from Serial port */
+	// vReadSerialArduino();
 
-	/* Send data serial port */
-	vSendDataArduinoSerial();
+	// /* Send data serial port */
+	// vSendDataArduinoSerial();
 
 	/* Read data from Android */
-	if (bCheckWifiClient())
-	{
-		void vReadAndroid();
+	vManageWifiClient();
 
-		/* Send data to the Android app */
-		clClient.print(sBuildMsgToAndroid());
-	} 
 }
 
 /****************************************** FUNCTION *******************************************//**
 * \brief Method that receives data from Android application through the WIFI module
+* \return Boolean indicating if the message is valid
 ***************************************************************************************************/
-void vReadAndroid() 
+bool bReadAndroid(std::string sMessage) 
 {
-	/* Read the request as a string */
-	std::string sAndoidMsg = clClient.readStringUntil('\r').c_str();
-	clClient.flush();
+	/* Check that the message contains the start and end delimiters */
+	bool bMessageValid = (sMessage.find(MSG_START_SC) != std::string::npos) &&
+					     (sMessage.find(MSG_END_SC)   != std::string::npos);
 
-	/* Parse the string to the structure. Use try-catch to protect from imposible parsing exceptions */
-	//try 
-	//{
+	/* If the message is valid... */
+	if (bMessageValid)
+	{
+		/* Remove except what is inside the brackets [] */ 
+		sMessage = sMessage.substr(sMessage.find(MSG_START_SC) + 1, 
+								   sMessage.find(MSG_END_SC) - sMessage.find(MSG_START_SC) - 1);
+
 		size_t tPos = 0;
 		std::string sToken;
 		unsigned char ucIdx = 0; /* Use this index to know which field of the structure is being populated */
-		while ((tPos = sAndoidMsg.find(MSG_DELIMITER_SC)) != std::string::npos) 
+		sMessage += ";"; /* Add final ; to make the while loop work for the last element */
+		while ((tPos = sMessage.find(MSG_DELIMITER_SC)) != std::string::npos) 
 		{
-			sToken = sAndoidMsg.substr(0, tPos);
+			sToken = sMessage.substr(0, tPos);
 			switch (ucIdx)
 			{
 			case 0 /* fMaxRotorSpeedRPM */:
@@ -123,16 +126,14 @@ void vReadAndroid()
 			}
 
 			/* Remove the token already processed */				
-			sAndoidMsg.erase(0, tPos + 1); /* +1 accounts for the size of the delimiter */
-		}
-	//}
-	//catch (...) 
-	//{
-	//	/* Catch all exceptions, but no action is necessary */
-	//}
+			sMessage.erase(0, tPos + 1); /* +1 accounts for the size of the delimiter */
 
-	clClient.flush();
-	clClient.stop();
+			/* Increment index */
+			ucIdx++;
+		}
+	}
+
+	return bMessageValid;
 }
 
 /****************************************** FUNCTION *******************************************//**
@@ -160,28 +161,43 @@ void vReadSerialArduino()
 }
 
 /****************************************** FUNCTION *******************************************//**
-* \brief Method that checks if the client is ok
-* \return Boolean indicating if the client is ok
+* \brief Method that manages wifi communications
 ***************************************************************************************************/
-bool bCheckWifiClient() 
+void vManageWifiClient() 
 {
 	bool bClientOk = true;
 
 	/* Check if a client has connected */
-	clClient = clServer.available();
+	WiFiClient clClient = clServer_.available();
 	if (clClient) 
 	{
+		Serial.println("Client available");
+	
 		/* Define a timeout for clients. Google Chrome opens the connection in a different way and makes
 		it necessary this piece of code. Otherwise, the ESP8266 stops answering after a random number of
 		requests. This problem was not found when connecting from Android or Explorer. More info here:
 		https://github.com/esp8266/Arduino/issues/3735*/
 		unsigned long timeout = millis();
-		while (clClient.available() == 0) 
+		while (clClient.available() == 0 && bClientOk) 
 		{
 			if (millis() - timeout > CLIENT_TIMEOUT_MS_UL) 
 			{
+				Serial.println("Client stopped");
 				clClient.stop();
 				bClientOk = false;
+			}
+		}
+
+		/* If the client is ok, create a response */
+		if (bClientOk)
+		{
+			/* Read the request as a string */	
+			bool bValidMsg = bReadAndroid(clClient.readStringUntil('\n').c_str());
+
+			if (bValidMsg)
+			{
+				/* Elaborate and send response */
+				clClient.print(sBuildMsgToAndroid());
 			}
 		}
 	}
@@ -190,7 +206,8 @@ bool bCheckWifiClient()
 		bClientOk = false;
 	}
 
-	return bClientOk;
+	/* Flush client */
+	clClient.flush();
 }
 
 /****************************************** FUNCTION *******************************************//**
@@ -198,6 +215,8 @@ bool bCheckWifiClient()
 ***************************************************************************************************/
 void vWifiConnect() 
 {
+	Serial.println("Scan start");
+
 	/* Try to connect until a known WIFI network is found */
 	bool bWifiFound = false;
 	unsigned char ucWifiIdx = 0;
@@ -237,7 +256,7 @@ void vWifiConnect()
 					break;
 				}
 			}
-		}
+	    }
 		delay(WIFI_RECONNECT_PERIOD_MS_UL);
 	}
 
@@ -260,7 +279,7 @@ void vWifiConnect()
 	Serial.println("WiFi connected");
 	
 	/* Start the server */
-	clServer.begin();
+	clServer_.begin();
 	Serial.println("Server started");
 
 	/* Print the IP address */
@@ -276,6 +295,7 @@ String sBuildMsgToAndroid()
 	String sMsg = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n<html>\r\n";
 
 	/* Concatenate parameter os AeroData structure */
+	sMsg.concat(MSG_START_SC);
 	sMsg.concat(stAeroData_.fAverageWindSpeed);
 	sMsg.concat(MSG_DELIMITER_SC);
 	sMsg.concat(stAeroData_.fBladePitchPercentage);
@@ -291,10 +311,9 @@ String sBuildMsgToAndroid()
 	sMsg.concat(stAeroData_.stStatus.eBreakStatus);
 	sMsg.concat(MSG_DELIMITER_SC);
 	sMsg.concat(stAeroData_.stStatus.ePitchMode);
-	sMsg.concat(MSG_DELIMITER_SC);
+	sMsg.concat(MSG_END_SC);
 
 	/* Add message end */
-	sMsg += "</html>\n";
 	return sMsg;
 }
 
@@ -303,9 +322,11 @@ String sBuildMsgToAndroid()
 ***************************************************************************************************/
 void vSendDataArduinoSerial() 
 {
+	Serial.println("Sending...");
+
 	/* Check if it is time to send new data */
 	if (clSenderSerialTimer_.check()) 
 	{
-		clCommsManager_.vSendMessage(stControlParams_, MESSAGEID_CONTROLPARAMS, Serial1);
+		clCommsManager_.vSendMessage(stControlParams_, MESSAGEID_CONTROLPARAMS, Serial);
 	}
 }

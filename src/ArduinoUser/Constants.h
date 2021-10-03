@@ -33,6 +33,5 @@ const int          ESP8266_SEND_PERIOD_MS_UL       = 500;                /**< Ti
 const UserMaster_e DEFAULT_USER_MASTER_E           = USERMASTER_ARDUINO; /**< Default control master                                                              */
 const int          ANDROID_TIMEOUT_MS_UL           = 30000;              /**< Timeout to transition from Android to Arduino if no messages are received           */
 const int          COMMS_BAUD_RATE_UL              = 9600;               /**< Baud rate for serial communications                                                 */
-const int          MASTER_SWITCH_TIMEOUT_MILLIS_UL = 30000;              /**< If no message is received from the Wifi module, the master gets back to the Arduino */
 
 #endif // CONSTANTS_H_
