@@ -34,6 +34,7 @@ const unsigned int MAX_MSG_SIZE_UL_ = sizeof(ControlParams_st) > sizeof(AeroData
 									  sizeof(ControlParams_st) : sizeof(AeroData_st);
 unsigned char aucReadingBuf_[MAX_MSG_SIZE_UL_];
 CommsManager_cl clCommsManager_;
+CommsManager_cl clCommsManagerESP8266_;
 unsigned long ulLastEsp8266Time_ = -ANDROID_TIMEOUT_MS_UL; /**< Time of the last message received from the wifi module */
 
 /* Auxiliary variables */
@@ -87,6 +88,7 @@ void setup()
 ***************************************************************************************************/
 void loop() 
 {
+
 	/* Manage transition of the master control */
 	vMasterTransitionManagement();
 
@@ -146,8 +148,8 @@ void vReadUserInputs()
 		/* Break switch reading */
 		if (static_cast<int>(bLastBreakSwitchReading_) != digitalRead(MANUAL_BREAK_PIN_UL)) 
 		{
-			stControlParams_.bManualBreak = static_cast<bool>(digitalRead(MANUAL_BREAK_PIN_UL));
-			bLastBreakSwitchReading_ = stControlParams_.bManualBreak;
+			stControlParams_.eManualBreak = static_cast<ManualBreak_e>(digitalRead(MANUAL_BREAK_PIN_UL));
+			bLastBreakSwitchReading_ = static_cast<bool>(stControlParams_.eManualBreak);
 		}
 
 		/* Max RPM potentiometer reading */
@@ -200,7 +202,7 @@ void vReadDataHC12()
 	while (clCommsManager_.bReadInputMessage(Serial1, aucReadingBuf_, ulMsgLength, eMsgID))
 	{
 		/* Copy the buffer to the message */
-		if ((eMsgID == MESSAGEID_AERODATA) && (ulMsgLength == sizeof(AeroData_st)))
+		if ((eMsgID == MESSAGEID_AERODATA))
 		{
 			memcpy(&stAeroData_, aucReadingBuf_, ulMsgLength);
 		}
@@ -217,12 +219,20 @@ void vReadDataESP8266()
 	MessageID_e eMsgID = MESSAGEID_COUNT;
 
 	/* Check if there is input data */
-	while (clCommsManager_.bReadInputMessage(Serial2, aucReadingBuf_, ulMsgLength, eMsgID))
+	while (clCommsManagerESP8266_.bReadInputMessage(Serial2, aucReadingBuf_, ulMsgLength, eMsgID))
 	{
 		/* Copy the buffer to the message */
-		if ((eMsgID == MESSAGEID_CONTROLPARAMS) && (ulMsgLength == sizeof(AeroData_st)))
+		if ((eMsgID == MESSAGEID_CONTROLPARAMS) /*&& (eUserMaster_ == USERMASTER_ARDUINO)*/)
 		{
-			memcpy(&stControlParams_, aucReadingBuf_, ulMsgLength);
+			Serial.println("mensaje esp8266 recibido");
+			memcpy(&stControlParams_, &aucReadingBuf_[0], sizeof(stControlParams_));
+
+			Serial.println("Manual break = " + (String)stControlParams_.eManualBreak);
+			Serial.println("Pitch mode = " + (String)stControlParams_.ePitchMode);
+			Serial.println("pitch percent = " + (String)stControlParams_.fBladePitchPercentage);
+			Serial.println("max rotor speed = " + (String)stControlParams_.fMaxRotorSpeedRPM);
+			Serial.println("max wind speed = " + (String)stControlParams_.fMaxWindSpeed);
+			Serial.println("-------");
 
 			/* Update reception time of last message */
 			ulLastEsp8266Time_ = millis();
@@ -297,7 +307,6 @@ void vRefreshScreen()
 
 		/* Update blade pitch percentage. Convert to a char[]. We want 3 digits with no comma or
 		sign */
-		Serial.println("lcd pitch: " + (String)stAeroData_.fBladePitchPercentage);
 		dtostrf(stAeroData_.fBladePitchPercentage, 3, 0, scAuxText); 
 		clLCD_.setCursor(14, 3);
 		clLCD_.print(scAuxText[0]); /**< hundreds */
@@ -311,13 +320,13 @@ void vRefreshScreen()
 ***************************************************************************************************/
 void vSendDataHC12() 
 {
-	Serial.println("-------");
-	Serial.println("Manual break = " + (String)stControlParams_.bManualBreak);
-	Serial.println("Pitch mode = " + (String)stControlParams_.ePitchMode);
-	Serial.println("pitch percent = " + (String)stControlParams_.fBladePitchPercentage);
-	Serial.println("max rotor speed = " + (String)stControlParams_.fMaxRotorSpeedRPM);
-	Serial.println("max wind speed = " + (String)stControlParams_.fMaxWindSpeed);
-	Serial.println("-------");
+	// Serial.println("-------");
+	// Serial.println("Manual break = " + (String)stControlParams_.bManualBreak);
+	// Serial.println("Pitch mode = " + (String)stControlParams_.ePitchMode);
+	// Serial.println("pitch percent = " + (String)stControlParams_.fBladePitchPercentage);
+	// Serial.println("max rotor speed = " + (String)stControlParams_.fMaxRotorSpeedRPM);
+	// Serial.println("max wind speed = " + (String)stControlParams_.fMaxWindSpeed);
+	// Serial.println("-------");
 
 	/* Check if it is time to send new data */
 	if (clSenderHC12Timer_.check()) 
@@ -335,13 +344,13 @@ void vSendDataESP8266()
 	if (clSenderESP8266Timer.check()) 
 	{
 		/* Send Aero data comming from the Arduino control */
-		clCommsManager_.vSendMessage(stAeroData_, MESSAGEID_AERODATA, Serial2);
+		clCommsManagerESP8266_.vSendMessage(stAeroData_, MESSAGEID_AERODATA, Serial2);
 
 		/* If the Arduino is the master, send the current control params to the Wifi module, just to
 		show them as the default values for the fields of the IHM */
 		if (eUserMaster_ == USERMASTER_ARDUINO)
 		{
-			clCommsManager_.vSendMessage(stControlParams_, MESSAGEID_CONTROLPARAMS, Serial2);
+			clCommsManagerESP8266_.vSendMessage(stControlParams_, MESSAGEID_CONTROLPARAMS, Serial2);
 		}
 	}
 }

@@ -51,8 +51,7 @@ Metro clSenderSerialTimer_ = Metro(SERIAL_DATA_SEND_PERIOD_MS_UL); /**< Timer to
 void setup() 
 {
 	/* Serial port initialization */
-	//Serial.begin(BAUD_RATE);
-	Serial.begin(115200);
+	Serial.begin(BAUD_RATE);
 	delay(10);
 
 	 /* Connect to WIFI network */
@@ -64,15 +63,14 @@ void setup()
 ***************************************************************************************************/
 void loop() 
 {
-	// /* Read messages received from Serial port */
-	// vReadSerialArduino();
+	/* Read messages received from Serial port */
+	vReadSerialArduino();
 
-	// /* Send data serial port */
-	// vSendDataArduinoSerial();
+	/* Send data serial port */
+	vSendDataArduinoSerial();
 
 	/* Read data from Android */
 	vManageWifiClient();
-
 }
 
 /****************************************** FUNCTION *******************************************//**
@@ -114,7 +112,7 @@ bool bReadAndroid(std::string sMessage)
 				break;
 
 			case 3 /* bManualBreak */:
-				stControlParams_.bManualBreak = static_cast<bool>(std::atoi(sToken.c_str()));
+				stControlParams_.eManualBreak = static_cast<ManualBreak_e>(std::atoi(sToken.c_str()));
 				break;
 
 			case 4 /* ePitchMode */:
@@ -171,7 +169,7 @@ void vManageWifiClient()
 	WiFiClient clClient = clServer_.available();
 	if (clClient) 
 	{
-		Serial.println("Client available");
+		//Serial.println("Client available");
 	
 		/* Define a timeout for clients. Google Chrome opens the connection in a different way and makes
 		it necessary this piece of code. Otherwise, the ESP8266 stops answering after a random number of
@@ -182,7 +180,7 @@ void vManageWifiClient()
 		{
 			if (millis() - timeout > CLIENT_TIMEOUT_MS_UL) 
 			{
-				Serial.println("Client stopped");
+				//Serial.println("Client stopped");
 				clClient.stop();
 				bClientOk = false;
 			}
@@ -322,11 +320,21 @@ String sBuildMsgToAndroid()
 ***************************************************************************************************/
 void vSendDataArduinoSerial() 
 {
-	Serial.println("Sending...");
-
 	/* Check if it is time to send new data */
 	if (clSenderSerialTimer_.check()) 
 	{
+		// Serial.println("enviando...");
+		// Serial.print("fMaxRotorSpeedRPM: ");
+		// Serial.println(stControlParams_.fMaxRotorSpeedRPM);
+		// Serial.print("fMaxWindSpeed: ");
+		// Serial.println(stControlParams_.fMaxWindSpeed);
+		// Serial.print("fBladePitchPercentage: ");
+		// Serial.println(stControlParams_.fBladePitchPercentage);
+		// Serial.print("bManualBreak: ");
+		// Serial.println(stControlParams_.eManualBreak);
+		// Serial.print("ePitchMode: ");
+		// Serial.println(stControlParams_.ePitchMode);
+
 		clCommsManager_.vSendMessage(stControlParams_, MESSAGEID_CONTROLPARAMS, Serial);
 	}
 }
