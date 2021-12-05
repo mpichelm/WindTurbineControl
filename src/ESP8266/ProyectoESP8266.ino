@@ -37,12 +37,14 @@ ControlParams_st stControlParams_ = {};	/**< Control requests by the user */
 
 /* Communications variables */
 const unsigned int MAX_MSG_SIZE_UL_ = sizeof(ControlParams_st) > sizeof(AeroData_st) ? 
-									 sizeof(ControlParams_st) : sizeof(AeroData_st);
+									  sizeof(ControlParams_st) : sizeof(AeroData_st);
 unsigned char aucReadingBuf_[MAX_MSG_SIZE_UL_];
 
-WiFiServer clServer_(SERVER_PORT_UL); 							   /**< Instance for the wifi server               */
-CommsManager_cl clCommsManager_;	 							   /**< Manager to communicate with the Arduino    */
-Metro clSenderSerialTimer_ = Metro(SERIAL_DATA_SEND_PERIOD_MS_UL); /**< Timer to send messages through serial port */
+WiFiServer clServer_(SERVER_PORT_UL); 							   /**< Instance for the wifi server                                                  */
+CommsManager_cl clCommsManager_;	 							   /**< Manager to communicate with the Arduino                                       */
+Metro clSenderSerialTimer_ = Metro(SERIAL_DATA_SEND_PERIOD_MS_UL); /**< Timer to send messages through serial port                                    */
+bool bNewMessageWifi_ = false;									   /**< A new message has been received trough wifi                                   */
+bool bFlagClientInitialData_ = false;							   /**< Boolean that indicates if the app has received inital state of control params */
 
 
 /****************************************** FUNCTION *******************************************//**
@@ -83,6 +85,10 @@ bool bReadAndroid(std::string sMessage)
 	bool bMessageValid = (sMessage.find(MSG_START_SC) != std::string::npos) &&
 					     (sMessage.find(MSG_END_SC)   != std::string::npos);
 
+	/* Initialize to false the boolean that indicates the Android app has initialized its control 
+	parameters. The rest of parameters are only read if this is true */
+	bFlagClientInitialData_ = false;
+
 	/* If the message is valid... */
 	if (bMessageValid)
 	{
@@ -99,26 +105,45 @@ bool bReadAndroid(std::string sMessage)
 			sToken = sMessage.substr(0, tPos);
 			switch (ucIdx)
 			{
-			case 0 /* fMaxRotorSpeedRPM */:
-				stControlParams_.fMaxRotorSpeedRPM = std::atof(sToken.c_str());
+			case 0 /* bFlagClientInitialData_ */:
+				bFlagClientInitialData_ = static_cast<bool>(std::atoi(sToken.c_str()));
 				break;
 
-			case 1 /* fMaxWindSpeed */:
-				stControlParams_.fMaxWindSpeed = std::atof(sToken.c_str());
+			case 1 /* fMaxRotorSpeedRPM */:
+				if (bFlagClientInitialData_)
+				{
+					stControlParams_.fMaxRotorSpeedRPM = std::atof(sToken.c_str());
+				}
 				break;
 
-			case 2 /* fBladePitchPercentage */:
-				stControlParams_.fBladePitchPercentage = std::atof(sToken.c_str());
+			case 2 /* fMaxWindSpeed */:
+				if (bFlagClientInitialData_)
+				{
+					stControlParams_.fMaxWindSpeed = std::atof(sToken.c_str());
+				}
 				break;
 
-			case 3 /* bManualBreak */:
-				stControlParams_.eManualBreak = static_cast<ManualBreak_e>(std::atoi(sToken.c_str()));
+			case 3 /* fBladePitchPercentage */:
+				if (bFlagClientInitialData_)
+				{
+					stControlParams_.fBladePitchPercentage = std::atof(sToken.c_str());
+				}
 				break;
 
-			case 4 /* ePitchMode */:
-				stControlParams_.ePitchMode = static_cast<PitchMode_e>(std::atoi(sToken.c_str()));
+			case 4 /* bManualBreak */:
+				if (bFlagClientInitialData_)
+				{
+					stControlParams_.eManualBreak = static_cast<ManualBreak_e>(std::atoi(sToken.c_str()));
+				}
 				break;
-			
+
+			case 5 /* ePitchMode */:
+				if (bFlagClientInitialData_)
+				{
+					stControlParams_.ePitchMode = static_cast<PitchMode_e>(std::atoi(sToken.c_str()));
+				}
+				break;
+				
 			default:
 				break;
 			}
@@ -147,13 +172,13 @@ void vReadSerialArduino()
 	while (clCommsManager_.bReadInputMessage(Serial, aucReadingBuf_, ulMsgLength, eMsgID))
 	{
 		/* Copy the buffer to the message */
-		if ((eMsgID == MESSAGEID_AERODATA) && (ulMsgLength == sizeof(AeroData_st)))
+		if (eMsgID == MESSAGEID_AERODATA)
 		{
-			memcpy(&stAeroData_, aucReadingBuf_, ulMsgLength);
+			memcpy(&stAeroData_, aucReadingBuf_, sizeof(stAeroData_));
 		}
-		else if ((eMsgID == MESSAGEID_CONTROLPARAMS) && (ulMsgLength == sizeof(ControlParams_st)))
+		else if (eMsgID == MESSAGEID_CONTROLPARAMS)
 		{
-			memcpy(&stControlParams_, aucReadingBuf_, ulMsgLength);
+			memcpy(&stControlParams_, aucReadingBuf_, sizeof(stControlParams_));
 		}
 	}
 }
@@ -190,9 +215,9 @@ void vManageWifiClient()
 		if (bClientOk)
 		{
 			/* Read the request as a string */	
-			bool bValidMsg = bReadAndroid(clClient.readStringUntil('\n').c_str());
+			bNewMessageWifi_ = bReadAndroid(clClient.readStringUntil('\n').c_str());
 
-			if (bValidMsg)
+			if (bNewMessageWifi_)
 			{
 				/* Elaborate and send response */
 				clClient.print(sBuildMsgToAndroid());
@@ -309,6 +334,16 @@ String sBuildMsgToAndroid()
 	sMsg.concat(stAeroData_.stStatus.eBreakStatus);
 	sMsg.concat(MSG_DELIMITER_SC);
 	sMsg.concat(stAeroData_.stStatus.ePitchMode);
+	sMsg.concat(MSG_DELIMITER_SC);
+	sMsg.concat(stControlParams_.fMaxRotorSpeedRPM);
+	sMsg.concat(MSG_DELIMITER_SC);
+	sMsg.concat(stControlParams_.fMaxWindSpeed);
+	sMsg.concat(MSG_DELIMITER_SC);
+	sMsg.concat(stControlParams_.fBladePitchPercentage);
+	sMsg.concat(MSG_DELIMITER_SC);
+	sMsg.concat(stControlParams_.eManualBreak);
+	sMsg.concat(MSG_DELIMITER_SC);
+	sMsg.concat(stControlParams_.ePitchMode);
 	sMsg.concat(MSG_END_SC);
 
 	/* Add message end */
@@ -321,7 +356,8 @@ String sBuildMsgToAndroid()
 void vSendDataArduinoSerial() 
 {
 	/* Check if it is time to send new data */
-	if (clSenderSerialTimer_.check()) 
+	//if (clSenderSerialTimer_.check()) 
+	if (bNewMessageWifi_)
 	{
 		// Serial.println("enviando...");
 		// Serial.print("fMaxRotorSpeedRPM: ");
@@ -336,5 +372,6 @@ void vSendDataArduinoSerial()
 		// Serial.println(stControlParams_.ePitchMode);
 
 		clCommsManager_.vSendMessage(stControlParams_, MESSAGEID_CONTROLPARAMS, Serial);
+		bNewMessageWifi_ = false;
 	}
 }

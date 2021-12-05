@@ -1,175 +1,201 @@
-/*
- Name:		ActuadorLineal.cpp
- Created:	18/02/2018 10:31:13
- Author:	PC
- Editor:	http://www.visualmicro.com
-*/
+/******************************************** INCLUDES ********************************************/
+/* System includes */
 
-// NOTA: Los reles tienen logica invertida. Es decir, si no damos señal, están comuntados al "normally open",
-// lo cual es una putada porque consumen más. Asi que nos adaptaremos para utilizar esta lógica y que por defecto
-// estén apagados cuando ningun actuador está actuando.
-
-#include "Arduino.h"
+/* Custom includes */
+#include <arduino.h> // TODO: just to use Serial.print
 #include "ActuadorLineal.h"
 
-ActuadorLineal::ActuadorLineal() {}
 
-ActuadorLineal::ActuadorLineal(int pinReleRetraerActuador, int pinReleExtenderActuador, int pinSensorHall, float longitudMaximaActuadorMilimetros, float longitudActuadorUtilizableMilimetros, int numeroMaximoVueltas) {
+/******************************************** FUNCTION *****************************************//**
+***************************************************************************************************/
+LinearServo_cl::LinearServo_cl()
+{
 
-	// Asignamos la funcion "interrupt" que queremos que salte cuando el engranaje del actuador da una "vuelta"
-	attachInterrupt(digitalPinToInterrupt(pinSensorHall), LeerSensorHallEngranaje, RISING);
-
-	// guardamos los pines en las variables internas
-	this->pinReleExtenderActuador = pinReleExtenderActuador;
-	this->pinReleRetraerActuador = pinReleRetraerActuador;
-	this->pinSensorHall = pinSensorHall;
-
-	// guardamos los datos del actuador en la variable interna
-	this->longitudMaximaActuador = longitudMaximaActuadorMilimetros;
-	this->longitudActuadorUtilizable = longitudActuadorUtilizableMilimetros;
-
-	// Declaramos los pines involucrados
-	pinMode(pinReleRetraerActuador, OUTPUT); // pin que activa el relé que extiende el actuador
-	pinMode(pinReleExtenderActuador, OUTPUT); // pin que activa el relé que retrae el actuador
-	pinMode(pinSensorHall, INPUT); // pin que recibe la señal del sensor hall para contar vueltas
-
-	// Realizamos la calibración para saber cuantas vueltas de engranaje del actuador son
-	// necesarias para obtener la máxima extensión del mismo
-	// Primero extraemos completamente el actuador
-	RetraerActuador();
-	delay(MILISEGUNDOS_CALIBRACION_ACTUADOR); // mantenemos el el pin de extension durante 15 segundos, tiempo suficiente para que el actuador se expanda completamente
-	DetenerActuador();
-
-	// resetamos la variable del número de vueltas del engranaje
-	numeroVueltasTotalesEngranaje = numeroMaximoVueltas; 
-	numeroVueltasEngranajeActual = 0;
-
-	// Calculamos cuanta extensión corresponde con cada vuelta de engranaje
-	relacionExtensionPorVueltaEngranaje = longitudMaximaActuadorMilimetros / numeroVueltasTotalesEngranaje;	
-
-	// flag de calibración
-	flagCalibrando = false;	
 }
 
-void ActuadorLineal::Operar() {
+/******************************************** FUNCTION *****************************************//**
+***************************************************************************************************/
+void LinearServo_cl::vSetup(const int   ulRelayRetractionPin, 
+							const int   ulRelayExtensionPin, 
+							const int   ulHallSensorPin, 
+							const float fServoTotalLenght, 
+							const float fServoUsedLength, 
+							const int   ulMaxTurns)
+{
+	/* Store input variables */
+	ulRelayRetractionPin_ = ulRelayRetractionPin;
+	ulRelayExtensionPin_ = ulRelayExtensionPin;
+	ulHallSensorPin_ = ulHallSensorPin;
+	fServoTotalLenght_ = fServoTotalLenght;
+	fServoUsedLength_ = fServoUsedLength;
+	ulMaxTurns_ = ulMaxTurns;
 
-	//Serial.println("---------");
-	//Serial.print("Objetivo: ");
-	//Serial.println(numeroVueltasObjetivo);
+	/* Attach the interrupt function */
+	attachInterrupt(digitalPinToInterrupt(ulHallSensorPin), vReadHallSensor, RISING);
 
-	//Serial.print("Actual: ");
-	//Serial.println(numeroVueltasEngranajeActual);
+	/* Declare pint for relays and hall sensor */
+	pinMode(ulRelayRetractionPin_, OUTPUT); 
+	pinMode(ulRelayExtensionPin_,  OUTPUT); 
+	pinMode(ulHallSensorPin_,      INPUT);
 
-	if (!flagCalibrando) { // solo hacemos esto si no estamos calibrando
-		// La parte más importante de la operación es controlar que la extensión del actuador coincide con la pedida por el usuario
-		// calculamos el número de vueltas de engranaje que correponde con la extensión que buscamos
-		numeroVueltasObjetivo = alargamientoSolicitadoMilimetros / relacionExtensionPorVueltaEngranaje;
+	/* Retract actuator completely, to start from a known position */
+	Serial.println("Initial retraction...");
+	vRetractServo();
+	delay(CALIBRATION_TIME_MS_ULL);
+ 	ulCurrentTurns_ = 0;
 
-		// Comparamos el número de vueltas del engranaje actual con la objetivo para ver si tenemos que activar el relé de extensión, de retracción, o ninguno
-		if (numeroVueltasObjetivo > numeroVueltasEngranajeActual &&
-			abs(numeroVueltasObjetivo - numeroVueltasEngranajeActual) > NUMERO_VUELTAS_ERROR_ADMITIDO) { // en este caso necesitamos expandir el actuador
-			ExtenderActuador();
+	/* Compute extension/turns ratio */
+	fExtensionTurnRatio_ = fServoTotalLenght / ulMaxTurns;	
+
+	/* Set to false the calibration boolean */
+	bCalibrating_ = false;	
+}
+
+/******************************************** FUNCTION *****************************************//**
+***************************************************************************************************/
+void LinearServo_cl::vOperate() 
+{
+	/* Check if it is in calibration mode or not */
+	if (!bCalibrating_) 
+	{ 
+		/* Compute the target number of turns */
+		ulTargetTurns_ = fRequestedLength_ / fExtensionTurnRatio_;
+		Serial.println("target turns: " + (String)ulTargetTurns_);
+		Serial.println("current turns: " + (String)ulCurrentTurns_);
+
+		/* Compare current position with target position */
+		if (ulTargetTurns_ > ulCurrentTurns_ &&
+			abs(ulTargetTurns_ - ulCurrentTurns_) > MAX_TURNS_ERROR_UL) 
+		{
+			/* Need to extend */
+			vExtendServo();
 		}
-		else if (numeroVueltasObjetivo < numeroVueltasEngranajeActual &&
-			abs(numeroVueltasObjetivo - numeroVueltasEngranajeActual) > NUMERO_VUELTAS_ERROR_ADMITIDO) { // en este caso necesitamos retraer
-			RetraerActuador();
+		else if (ulTargetTurns_ < ulCurrentTurns_ &&
+				 abs(ulTargetTurns_ - ulCurrentTurns_) > MAX_TURNS_ERROR_UL) 
+		{
+			/* Need to retract */
+			vRetractServo();
 		}
-		else { // si no estamos en ninguno de los casos anteriores, significa que las vueltas objetivo coninciden con las que tenemos
-			DetenerActuador();
+		else 
+		{
+			/* Need to stop */
+			vStopActuador();
 		}
 	}
-	else { // si estamos calibrando, controlamos la calibración
-		if (millis() - tiempoInicioCalibracion > MILISEGUNDOS_CALIBRACION_ACTUADOR) { // esperamos 15 segundos para desactivar la calibración
-			flagCalibrando = false; // ya podemos desactivar el flag
-			numeroVueltasEngranajeActual = 0; // el actuador se habrá retraido completamente, asi que resetamos las vueltas del engranaje
+	/* In calibration mode... */
+	else 
+	{ 	
+		/* Control the duration of the calibration */
+		if (millis() - ullCalibrationStartTime_ > CALIBRATION_TIME_MS_ULL) 
+		{ 
+			bCalibrating_ = false; /* After the calibration time passed, the boolean is disabled */
+			ulCurrentTurns_ = 0;   /* Servo is fully retracted */
 		}
-	}
-}
-
-// Función que establece el alargamiento del actuador en una determinada distancia en milímetros tomando como referencia cuando está totalmente retraído
-// Viene a ser un método setter
-void ActuadorLineal::SetExtensionLongitud(float alargamientoMilimetros) {
-	alargamientoMilimetros = min(alargamientoMilimetros, longitudActuadorUtilizable);
-	alargamientoSolicitadoMilimetros = alargamientoMilimetros;
-}
-
-// Función que establece el alargamiento del actuador en un cierto % de la extensión utilizable que hemos elegido para el actuador.
-void ActuadorLineal::SetExtensionPorcentaje(float porcentajeExtension) {
-	alargamientoSolicitadoMilimetros = porcentajeExtension / 100 * longitudActuadorUtilizable;
-}
-
-// Método que calcula el % de extensión del actuador respecto a la longitud utilizable elegida
-float ActuadorLineal::GetExtensionActualPorcentaje() {
-	return numeroVueltasEngranajeActual * relacionExtensionPorVueltaEngranaje / longitudActuadorUtilizable * 100;
-}
-
-void ActuadorLineal::ExtenderActuador()
-{
-	DetenerActuador();
-	estadoActuadorPalas = 1;
-	digitalWrite(pinReleRetraerActuador, HIGH);
-	digitalWrite(pinReleExtenderActuador, LOW);
-}
-
-void ActuadorLineal::RetraerActuador()
-{
-	DetenerActuador();
-	estadoActuadorPalas = -1;
-	digitalWrite(pinReleExtenderActuador, HIGH);
-	digitalWrite(pinReleRetraerActuador, LOW);
-}
-
-void ActuadorLineal::DetenerActuador()
-{
-	estadoActuadorPalas = 0;
-	digitalWrite(pinReleExtenderActuador, HIGH);
-	digitalWrite(pinReleRetraerActuador, HIGH);
-}
-
-int ActuadorLineal::GetVueltasActuales()
-{
-	return numeroVueltasEngranajeActual;
-}
-
-void ActuadorLineal::SetVueltasActuales(int vueltasActuales)
-{
-	numeroVueltasEngranajeActual = vueltasActuales;
-}
-
-// Método que permite calibrar el actuador. No es igual que la calibración inicial, en la que se determina el número de vueltas de engranaje 
-// necesarias para extender completamente el actuador. En este caso solo se retrae el actuador hasta asegurar que el 0% de extensión sucede
-// cuando está completamente retraído y no ha habido una deriva
-void ActuadorLineal::Calibrar() {
-
-	if (!flagCalibrando) { // si no estamos calibrando, podemos activarla
-		flagCalibrando = true; // empezamos a calibrar
-		tiempoInicioCalibracion = millis(); // anotamos el tiempo en el que empezamos, porque la calibración dura un tiempo concreto
-		RetraerActuador(); // retraemos el actuador.
 	}
 }
 
-void ActuadorLineal::LeerSensorHallEngranaje() {
-	// Evitamos con este if que la misma vuelta active el iman mas de una vez en una misma pasada
-	if (millis() - tiempoUltimaActivacionHallServo > 10) {
-		if (estadoActuadorPalas == 1) {
-			numeroVueltasEngranajeActual = numeroVueltasEngranajeActual + 1;
+/******************************************** FUNCTION *****************************************//**
+***************************************************************************************************/
+void LinearServo_cl::vSetExtensionLength(const float fLengthMillimeter) 
+{
+	fRequestedLength_ = min(fLengthMillimeter, fServoUsedLength_);
+}
+
+/******************************************** FUNCTION *****************************************//**
+***************************************************************************************************/
+void LinearServo_cl::vSetExtensionPercentage(const float fPercent) 
+{
+	fRequestedLength_ = fPercent / 100.0f * fServoUsedLength_;
+}
+
+/******************************************** FUNCTION *****************************************//**
+***************************************************************************************************/
+float LinearServo_cl::fGetExtensionPercentage() 
+{
+	return ulCurrentTurns_ * fExtensionTurnRatio_ / fServoUsedLength_ * 100.0f;
+}
+
+/******************************************** FUNCTION *****************************************//**
+***************************************************************************************************/
+void LinearServo_cl::vExtendServo()
+{
+	vStopActuador();
+	eServoState_ = SERVOSTATE_EXTENDING;
+	digitalWrite(ulRelayRetractionPin_, HIGH);
+	digitalWrite(ulRelayExtensionPin_, LOW);
+}
+
+/******************************************** FUNCTION *****************************************//**
+***************************************************************************************************/
+void LinearServo_cl::vRetractServo()
+{
+	vStopActuador();
+	eServoState_ = SERVOSTATE_RETRACTING;
+	digitalWrite(ulRelayRetractionPin_, LOW);
+	digitalWrite(ulRelayExtensionPin_, HIGH);
+}
+
+/******************************************** FUNCTION *****************************************//**
+***************************************************************************************************/
+void LinearServo_cl::vStopActuador()
+{
+	eServoState_ = SERVOSTATE_STOPPED;
+	digitalWrite(ulRelayExtensionPin_, HIGH);
+	digitalWrite(ulRelayRetractionPin_, HIGH);
+}
+
+/******************************************** FUNCTION *****************************************//**
+***************************************************************************************************/
+int LinearServo_cl::ulGetCurrentTurns()
+{
+	return ulCurrentTurns_;
+}
+
+/******************************************** FUNCTION *****************************************//**
+***************************************************************************************************/
+void LinearServo_cl::vSetCurrentTurns(const int ulCurrentTurns)
+{
+	ulCurrentTurns_ = ulCurrentTurns;
+}
+
+/******************************************** FUNCTION *****************************************//**
+***************************************************************************************************/
+void LinearServo_cl::vCalibrate() 
+{
+	/* Activate calibration mode if not in calibration mode */
+	if (!bCalibrating_) 
+	{ 
+		bCalibrating_ = true;
+		ullCalibrationStartTime_ = millis();
+		vRetractServo();
+	}
+}
+
+/******************************************** FUNCTION *****************************************//**
+***************************************************************************************************/
+static void vReadHallSensor() 
+{
+	/* This if avoids triggering the interrupt multiple times for the same detection */
+	if (millis() - ulLastInterruptTime_ > 10) 
+	{
+		if (eServoState_ == SERVOSTATE_EXTENDING) 
+		{
+			ulCurrentTurns_ = ulCurrentTurns_ + 1;
 			Serial.print("+++ : ");
-			Serial.println(numeroVueltasEngranajeActual);
-
+			Serial.println(ulCurrentTurns_);
 		}
-		else if (estadoActuadorPalas == -1) {
-			numeroVueltasEngranajeActual = numeroVueltasEngranajeActual -1;
+		else if (eServoState_ == SERVOSTATE_RETRACTING) 
+		{
+			ulCurrentTurns_ = ulCurrentTurns_ - 1;
 			Serial.print("--- : ");
-			Serial.println(numeroVueltasEngranajeActual);
+			Serial.println(eServoState_);
 		}
-		//numeroVueltasEngranajeActual = max(0, min(numeroVueltasEngranajeActual, numeroVueltasTotalesEngranaje)); // Saturamos entre las vueltas máximas y minimas
-		numeroVueltasEngranajeActual = max(0, numeroVueltasEngranajeActual); // Saturamos entre las vueltas máximas y minimas
+		
+		/* Saturate between min and max value */
+		ulCurrentTurns_ = min(ulCurrentTurns_, ulMaxTurns_); 
 
-		tiempoUltimaActivacionHallServo = millis();
-
-
+		/* Update time of last activation */
+		ulLastInterruptTime_ = millis();
 	}
 }
-
-
 

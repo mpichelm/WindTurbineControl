@@ -14,7 +14,7 @@
 const char HC12_MODE_PIN           = 44; /**< Arduino pin to select HC12 mode: LOW = AT commands, HIGH = transparent mode (we use this) */
 const char ANEMOMETER_HALL_PIN     = 2;  /**< Digital pin for the anemomenter hall sensor                                               */
 const char TACOMETER_HALL_PIN      = 21; /**< Digital pin for the tacometer (rotor rpm) hall sensor                                     */
-const char DHT_22_PIN              = 40; /**< Digital pin for the DHT22 temperature/humidity sensor                                     */ 
+const char DHT_22_PIN              = 34; /**< Digital pin for the DHT22 temperature/humidity sensor                                     */ 
 const char ENABLE_BREAK_RELAY_PIN  = 32; /**< Digital pin to enable break                                                               */
 const char DISABLE_BREAK_RELAY_PIN = 30; /**< Digital pin to disable break                                                              */
 const char BLADE_RETRACTION_PIN    = 31; /**< Pin that controls the "servo" retraction for blade pitch control                          */

@@ -21,7 +21,7 @@ unsigned char aucReadingBuf_[MAX_MSG_SIZE_UL_];
 CommsManager_cl clCommsManager_;
 
 /* Sensors variables */
-ActuadorLineal   clPitchControlServo_;  			  /**< Servo to control blade pitch angle                    */
+LinearServo_cl   clPitchControlServo_;  			  /**< Servo to control blade pitch angle                    */
 DHT 		     clTempHRSensor_(DHT_22_PIN, DHT22);  /**< Temperature/Humidity sensor class                     */
 Metro 		     clReadDHT22Timer_(READ_PERIOD_MS);   /**< Class to control perdic temperature/humidity readings */
 Metro 		     clSenderHC12Timer_(COMMS_PERIOD_MS); /**< Class to control periodic message sends               */
@@ -63,8 +63,12 @@ void setup()
 	pinMode(DHT_22_PIN, INPUT);
 
 	/* Initialization of the pitch control servo */
-	clPitchControlServo_ = ActuadorLineal(BLADE_RETRACTION_PIN, BLADE_EXTENSION_PIN, SERVO_HALL_PIN,
-	 						 SERVO_LENGHT_MM, SERVO_USABLE_LENGTH_MM, SERVO_TURNS_TO_FULL_EXTENSION); 
+	clPitchControlServo_.vSetup(BLADE_RETRACTION_PIN, 
+								BLADE_EXTENSION_PIN, 
+								SERVO_HALL_PIN,
+	 						 	SERVO_LENGHT_MM, 
+								SERVO_USABLE_LENGTH_MM, 
+								SERVO_TURNS_TO_FULL_EXTENSION); 
 
 	/* Initialization of the DHT22 Initialization of the DHT22 sensor (temperature and humidity) */
 	clTempHRSensor_.begin();
@@ -102,7 +106,7 @@ void loop()
 	vAverageWindSpeed();
 
 	/* Read rotor speed */
-	stAeroData_.fRotorSpeedRPM = 15; // TODO: remove dummy value
+	stAeroData_.fRotorSpeedRPM = 150; // TODO: remove dummy value
 
 	/* Break control */ 
 	breakManagement(); /* Check for new necessary operations */
@@ -123,16 +127,16 @@ void vSendDataHC12()
 {
 	// TODO: break status used to be updated here
 
-	// Serial.println("-------");
-	// Serial.println("Average wind = " + (String)stAeroData_.fAverageWindSpeed);
-	// Serial.println("Blade percent = " + (String)stAeroData_.fBladePitchPercentage);
-	// Serial.println("Rel humidity = " + (String)stAeroData_.fRelHumidity);
-	// Serial.println("Rotor speed = " + (String)stAeroData_.fRotorSpeedRPM);
-	// Serial.println("Temp celsius = " + (String)stAeroData_.fTempCelsius);
-	// Serial.println("Wind speed = " + (String)stAeroData_.fWindSpeed);
-	// Serial.println("Break status = " + (String)stAeroData_.stStatus.eBreakStatus);
-	// Serial.println("Pitch mode = " + (String)stAeroData_.stStatus.ePitchMode);
-	// Serial.println("-------");
+	Serial.println(">>>>>>>>>>>>> SEND DATA HC12");
+	Serial.println("Average wind = " + (String)stAeroData_.fAverageWindSpeed);
+	Serial.println("Blade percent = " + (String)stAeroData_.fBladePitchPercentage);
+	Serial.println("Rel humidity = " + (String)stAeroData_.fRelHumidity);
+	Serial.println("Rotor speed = " + (String)stAeroData_.fRotorSpeedRPM);
+	Serial.println("Temp celsius = " + (String)stAeroData_.fTempCelsius);
+	Serial.println("Wind speed = " + (String)stAeroData_.fWindSpeed);
+	Serial.println("Break status = " + (String)stAeroData_.stStatus.eBreakStatus);
+	Serial.println("Pitch mode = " + (String)stAeroData_.stStatus.ePitchMode);
+	Serial.println("-------");
 
 	/* Check if it is time to send new data */
 	if (clSenderHC12Timer_.check()) 
@@ -155,12 +159,23 @@ void vReadDataHC12()
 	{
 		Serial.println("Recibido: " + (String)ulMsgLength + "  ID: " + (String)eMsgID);
 		/* Copy the buffer to the message */
-		if ((eMsgID == MESSAGEID_CONTROLPARAMS) && (ulMsgLength == sizeof(ControlParams_st)))
+		if (eMsgID == MESSAGEID_CONTROLPARAMS)
 		{
-			memcpy(&stControlParams_, aucReadingBuf_, ulMsgLength);
+			// Serial.print("Address stAeroData_ : ");
+			// Serial.println((uint16_t)(&stAeroData_));
+			memcpy(&stControlParams_, aucReadingBuf_, sizeof(stControlParams_));
+			// Serial.print("Address stAeroData_ : ");
+			// Serial.println((uint16_t)(&stAeroData_));
+			// for (size_t i = 0; i < ulMsgLength; i++)
+			// {
+			// 	Serial.print(aucReadingBuf_[i], HEX);
+			// 	Serial.print(" ");
+			// }
+			// Serial.println();
+			
 
-			Serial.println("-------");
-			Serial.println("Manual break = " + (String)stControlParams_.bManualBreak);
+			Serial.println("<<<<<<<<<<<<< READ DATA HC12");
+			Serial.println("Manual break = " + (String)stControlParams_.eManualBreak);
 			Serial.println("Pitch mode = " + (String)stControlParams_.ePitchMode);
 			Serial.println("pitch percent = " + (String)stControlParams_.fBladePitchPercentage);
 			Serial.println("max rotor speed = " + (String)stControlParams_.fMaxRotorSpeedRPM);
@@ -195,7 +210,8 @@ void vAverageWindSpeed()
 		afWindSamples_[ulWindSamplesIdx_] = stAeroData_.fWindSpeed;
 
 		/* Increment index for the next data save */
-		if (++ulWindSamplesIdx_ >= NUM_AVERAGE_WIND_SPEED_SAMPLES_UL)
+		ulWindSamplesIdx_++;
+		if (ulWindSamplesIdx_ > NUM_AVERAGE_WIND_SPEED_SAMPLES_UL)
 		{
 			bWindBufferFull = true;
 			ulWindSamplesIdx_ = 0;
@@ -218,9 +234,24 @@ void vAverageWindSpeed()
 void breakManagement() {
 
 	/* Check if it is necessary to break */
+	Serial.print("stAeroData_.fAverageWindSpeed: ");
+	Serial.println(stAeroData_.fAverageWindSpeed);
+
+	Serial.print("stControlParams_.fMaxWindSpeed: ");
+	Serial.println(stControlParams_.fMaxWindSpeed);
+
+	Serial.print("stAeroData_.fRotorSpeedRPM: ");
+	Serial.println(stAeroData_.fRotorSpeedRPM);
+
+	Serial.print("stControlParams_.fMaxRotorSpeedRPM: ");
+	Serial.println(stControlParams_.fMaxRotorSpeedRPM);
+
+	Serial.print("stControlParams_.eManualBreak: ");
+	Serial.println(stControlParams_.eManualBreak);
+
 	if (stAeroData_.fAverageWindSpeed > stControlParams_.fMaxWindSpeed || /* Average wind speed over threshold */
-		stAeroData_.fRotorSpeedRPM > stControlParams_.fMaxWindSpeed    || /* Rotor speed over threshold */
-		stControlParams_.bManualBreak) /* Rotor break manually requested */
+		stAeroData_.fRotorSpeedRPM > stControlParams_.fMaxRotorSpeedRPM    || /* Rotor speed over threshold */
+		stControlParams_.eManualBreak == MANUALBREAK_ON) /* Rotor break manually requested */
 	{ 
 		/* Break */
 		vBreak(); 
@@ -228,18 +259,15 @@ void breakManagement() {
 	/* If none of the conditions to activate the break is currently satisfied, release break */
 	else 
 	{
-		if (stAeroData_.stStatus.eBreakStatus == BREAK_ENABLED)
-		{
-			vReleaseBreak();
-		}
+		vReleaseBreak();
 	}
 }
 
 /****************************************** FUNCTION *******************************************//**
 * \brief This method activates the break system
 ***************************************************************************************************/
-void vBreak() {
-
+void vBreak()
+{
 	/* Save time of the activation request */
 	ullBreakLastRequestTimeMs_ = millis();
 
@@ -268,6 +296,8 @@ void vReleaseBreak()
 {
 	/* The break is released only if the break is fully enabled (not moving) and it has been breaked
 	for a minimum time interval */
+	Serial.print("ullBreakLastRequestTimeMs_: ");
+	Serial.println(ullBreakLastRequestTimeMs_);
 	if (stAeroData_.stStatus.eBreakStatus == BREAK_ENABLED && /* Break can only be released if the system is breaked */
 		millis()-ullBreakLastRequestTimeMs_ > BREAK_MIN_ENABLED_TIME_MS ) /* Release only if passed some time from las activation request */
 	{
@@ -319,7 +349,8 @@ void vBladePitchControl()
 	if (stAeroData_.stStatus.eBreakStatus == BREAK_ENABLED ||
 		stAeroData_.stStatus.eBreakStatus == BREAK_BREAKING)
 	{
-		clPitchControlServo_.SetExtensionPorcentaje(0);
+		Serial.println("Arduino control: freno aerondinamico");
+		clPitchControlServo_.vSetExtensionPercentage(0);
 	}
 	/* If the system is not breaked, manage pitch angle */
 	else 
@@ -327,7 +358,10 @@ void vBladePitchControl()
 		/* Manual pitch angle control */
 		if (stControlParams_.ePitchMode == PITCHMODE_MANUAL) 
 		{ 
-			clPitchControlServo_.SetExtensionPorcentaje(stControlParams_.fBladePitchPercentage);
+			clPitchControlServo_.vSetExtensionPercentage(stControlParams_.fBladePitchPercentage);
+
+			/* Get the current percentage */
+			stAeroData_.fBladePitchPercentage = clPitchControlServo_.fGetExtensionPercentage();
 		}
 		/* Automatic pitch control */
 		else if(stControlParams_.ePitchMode == PITCHMODE_AUTO) 
@@ -359,12 +393,15 @@ void vBladePitchControl()
 																	fBetaAngle);
 			
 			/* Command actuator extension */
-			clPitchControlServo_.SetExtensionPorcentaje(fActuatorExtensionPercent);
+			clPitchControlServo_.vSetExtensionPercentage(fActuatorExtensionPercent);
+
+			/* Get the current percentage */
+			stAeroData_.fBladePitchPercentage = clPitchControlServo_.fGetExtensionPercentage();
 		}
 	}
 	
 	/* This function should be called allways in the main loop */
-	clPitchControlServo_.Operar();
+	clPitchControlServo_.vOperate();
 }
 
 /****************************************** FUNCTION *******************************************//**
@@ -440,3 +477,15 @@ Type_t tInterp1D(const Type_t atX[ulDataLength], const Type_t atY[ulDataLength],
 }
 
 
+// template <typename Type_t>
+// void printStruct(const Type_t& inputStruct)
+// {
+// 	char data[sizeof(Type_t)];
+// 	memcpy(data, &inputStruct, sizeof(Type_t));
+// 	for(int i = 0; i < sizeof(Type_t); i++)
+// 	{
+// 		Serial.print((uint8_t)data[i], DEC);
+// 		Serial.print(" ");
+// 	}
+// 	Serial.println();
+// }
