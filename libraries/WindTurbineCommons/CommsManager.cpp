@@ -5,6 +5,7 @@
 /* Custom includes */
 #include "CommsManager.h"
 
+
 /****************************************** FUNCTION *******************************************//**
 * \brief Constructor of the communications manager class
 ***************************************************************************************************/
@@ -27,7 +28,7 @@ CommsManager_cl::~CommsManager_cl()
 * \brief This function tries to read a new message from the buffer
 * \param[in] clSerial: Stream (serial port) to read from
 * \param[out] pucMessage: Buffer where the message will be copied (body only)
-* \param[out] ulMsgLength: Length of the read message
+* \param[out] ulMsgLength: Length of the read message (does not include header and checksum)
 * \param[out] eMsgId: Id of the received message
 ***************************************************************************************************/
 bool CommsManager_cl::bReadInputMessage(Stream&        clSerial,
@@ -51,10 +52,6 @@ bool CommsManager_cl::bReadInputMessage(Stream&        clSerial,
         ulNextWritePos_ = (ulNextWritePos_ + 1) % INPUT_BUFFER_LENGTH_UL;
     }  
 
-    //Serial.println("next read pos: " + (String)ulNextReadPos_);
-    //Serial.println("next write pos: " + (String)ulNextWritePos_);
-    //Serial.println("Remaining bytes: " + (String)ulGetNumRemainingBytes(ulNextReadPos_));
-
     /* Find the start of a message. The stop condition is that there are less bytes available 
     than the size of a header */
     while( ulGetNumRemainingBytes(ulNextReadPos_) > sizeof(MsgHeader_st) ) 
@@ -77,12 +74,6 @@ bool CommsManager_cl::bReadInputMessage(Stream&        clSerial,
             }
             memcpy(&stMsgHeader, &aucHeaderBuffer[0], sizeof(MsgHeader_st));
 
-            // Serial.println("------header----");
-            // Serial.println("Id: " + (String)stMsgHeader.eId);
-            // Serial.println("Length: " + (String)stMsgHeader.ulLength);
-            // Serial.println("preamble: " + (String)stMsgHeader.ullPreable);
-            // Serial.println("----------");
-
             /* If the header is valid, check if the full message can be read from the buffer */
             if (bCheckHeader(stMsgHeader))
             {
@@ -96,12 +87,8 @@ bool CommsManager_cl::bReadInputMessage(Stream&        clSerial,
                     {
                         pucMessage[ulMsgByte] = aucInputBuffer_[ulTempNextReadPos_];
                         ulTempNextReadPos_ = (ulTempNextReadPos_ + 1) % INPUT_BUFFER_LENGTH_UL;
-                        Serial.print(aucInputBuffer_[ulTempNextReadPos_], HEX);
-                        Serial.print(" ");
                     }
-                    Serial.println();
-                    ulMsgLength = stMsgHeader.ulLength;
-                    //pucMessage = &aucInputBuffer_[sizeof(MsgHeader_st)];
+                    ulMsgLength = stMsgHeader.ulLength - sizeof(MsgHeader_st) - NUM_CHECKSUM_BYTES_UC;
 
                     /* Check message validity */
                     unsigned char aucChecksumBytes[NUM_CHECKSUM_BYTES_UC];
@@ -113,7 +100,7 @@ bool CommsManager_cl::bReadInputMessage(Stream&        clSerial,
                     int32_t ulReceivedChecksum = 0;
                     memcpy(&ulReceivedChecksum, &aucChecksumBytes, NUM_CHECKSUM_BYTES_UC);
                     bMsgFound = bCheckInputMsg(pucMessage, 
-                                               ulMsgLength - sizeof(MsgHeader_st) - NUM_CHECKSUM_BYTES_UC, 
+                                               ulMsgLength, 
                                                ulReceivedChecksum);
                     eMsgId = stMsgHeader.eId;
 

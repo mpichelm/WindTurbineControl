@@ -95,7 +95,6 @@ private:
                         const unsigned int   ulLength, 
                               Type_t&        tOutputData)
     {
-
         /* Initialize output data */
         tOutputData = {};
 

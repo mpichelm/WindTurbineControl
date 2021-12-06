@@ -17,7 +17,7 @@ consume more energy. We will adapt to this so they are not signaled when servo i
 
 /******************************************* CONSTANTS ********************************************/
 const int  MAX_TURNS_ERROR_UL      = 2; 	/**< Max gear turns difference allowed between requested and actual servo position */
-const long CALIBRATION_TIME_MS_ULL = 1500; /**< Calibration time, in milliseconds        
+const long CALIBRATION_TIME_MS_ULL = 10000; /**< Calibration time, in milliseconds        
 
 /********************************************* TYPES **********************************************/
 /***********************************************************************************************//**
