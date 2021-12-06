@@ -16,8 +16,8 @@ const unsigned int  BAUD_RATE_UL           = 9600;            /**< Baud rate for
 const unsigned int  INPUT_BUFFER_LENGTH_UL = 1000;            /**< Length of the input buffer                          */ 
 
 /* CONVERSION FACTORS */
-const float MILLIS_TO_SECONDS_F = 1000.0f; /**< Converstion factor from milliseconds to seconds */
-const float RPM_TO_RADSEC_F = PI / 30.0;   /**< Converstion factor from milliseconds to seconds */
+const float MILLIS_TO_SECONDS_F = 0.001f;   /**< Converstion factor from milliseconds to seconds */
+const float RPM_TO_RADSEC_F     = PI / 30.0; /**< Converstion factor from RPM to rad/s            */
 
 
 #endif /* COMMON_CONSTANTS_H_ */

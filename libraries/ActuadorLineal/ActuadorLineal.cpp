@@ -60,8 +60,6 @@ void LinearServo_cl::vOperate()
 	{ 
 		/* Compute the target number of turns */
 		ulTargetTurns_ = fRequestedLength_ / fExtensionTurnRatio_;
-		Serial.println("target turns: " + (String)ulTargetTurns_);
-		Serial.println("current turns: " + (String)ulCurrentTurns_);
 
 		/* Compare current position with target position */
 		if (ulTargetTurns_ > ulCurrentTurns_ &&
@@ -181,14 +179,10 @@ static void vReadHallSensor()
 		if (eServoState_ == SERVOSTATE_EXTENDING) 
 		{
 			ulCurrentTurns_ = ulCurrentTurns_ + 1;
-			Serial.print("+++ : ");
-			Serial.println(ulCurrentTurns_);
 		}
 		else if (eServoState_ == SERVOSTATE_RETRACTING) 
 		{
 			ulCurrentTurns_ = ulCurrentTurns_ - 1;
-			Serial.print("--- : ");
-			Serial.println(eServoState_);
 		}
 		
 		/* Saturate between min and max value */
