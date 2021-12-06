@@ -184,14 +184,6 @@ void vReadUserInputs()
 			stControlParams_.ePitchMode = static_cast<PitchMode_e>(switchReading);
 			ulLastPitchModeReading_ = switchReading;
 		}
-
-			Serial.println("Lectura panel mandos");
-			Serial.println("Manual break = " + (String)stControlParams_.eManualBreak);
-			Serial.println("Pitch mode = " + (String)stControlParams_.ePitchMode);
-			Serial.println("pitch percent = " + (String)stControlParams_.fBladePitchPercentage);
-			Serial.println("max rotor speed = " + (String)stControlParams_.fMaxRotorSpeedRPM);
-			Serial.println("max wind speed = " + (String)stControlParams_.fMaxWindSpeed);
-			Serial.println("-------");
 	}
 }
 
@@ -211,17 +203,6 @@ void vReadDataHC12()
 		if ((eMsgID == MESSAGEID_AERODATA))
 		{
 			memcpy(&stAeroData_, aucReadingBuf_, sizeof(stAeroData_));
-
-			Serial.println("<<<<<<<<<<<<<<<<mensaje HC12 recibido");
-			Serial.println("Average wind = " + (String)stAeroData_.fAverageWindSpeed);
-			Serial.println("Blade percent = " + (String)stAeroData_.fBladePitchPercentage);
-			Serial.println("Rel humidity = " + (String)stAeroData_.fRelHumidity);
-			Serial.println("Rotor speed = " + (String)stAeroData_.fRotorSpeedRPM);
-			Serial.println("Temp celsius = " + (String)stAeroData_.fTempCelsius);
-			Serial.println("Wind speed = " + (String)stAeroData_.fWindSpeed);
-			Serial.println("Break status = " + (String)stAeroData_.stStatus.eBreakStatus);
-			Serial.println("Pitch mode = " + (String)stAeroData_.stStatus.ePitchMode);
-			Serial.println("-------");
 		}
 	}
 }
@@ -241,15 +222,7 @@ void vReadDataESP8266()
 		/* Copy the buffer to the message */
 		if ((eMsgID == MESSAGEID_CONTROLPARAMS) /*&& (eUserMaster_ == USERMASTER_ARDUINO)*/)
 		{
-			Serial.println("<<<<<<<<<<<<<<mensaje esp8266 recibido");
 			memcpy(&stControlParams_, &aucReadingBuf_[0], sizeof(stControlParams_));
-
-			Serial.println("Manual break = " + (String)stControlParams_.eManualBreak);
-			Serial.println("Pitch mode = " + (String)stControlParams_.ePitchMode);
-			Serial.println("pitch percent = " + (String)stControlParams_.fBladePitchPercentage);
-			Serial.println("max rotor speed = " + (String)stControlParams_.fMaxRotorSpeedRPM);
-			Serial.println("max wind speed = " + (String)stControlParams_.fMaxWindSpeed);
-			Serial.println("-------");
 
 			/* Update reception time of last message */
 			ulLastEsp8266Time_ = millis();
@@ -340,14 +313,6 @@ void vSendDataHC12()
 	/* Check if it is time to send new data */
 	if (clSenderHC12Timer_.check()) 
 	{
-		Serial.println(">>>>>>>>>>>>>-SEND-DATA-TO-HC12-----");
-		Serial.println("Manual break = " + (String)stControlParams_.eManualBreak);
-		Serial.println("Pitch mode = " + (String)stControlParams_.ePitchMode);
-		Serial.println("pitch percent = " + (String)stControlParams_.fBladePitchPercentage);
-		Serial.println("max rotor speed = " + (String)stControlParams_.fMaxRotorSpeedRPM);
-		Serial.println("max wind speed = " + (String)stControlParams_.fMaxWindSpeed);
-		Serial.println("-------");
-
 		clCommsManagerHC12_.vSendMessage(stControlParams_, MESSAGEID_CONTROLPARAMS, Serial1);
 	}
 }
@@ -360,26 +325,11 @@ void vSendDataESP8266()
 	/* Check if it is time to send new data */
 	if (clSenderESP8266Timer.check())
 	{
-			Serial.println(">>>>>>>>>>>>>SEND-DATA-TO-ESP8266");
-			Serial.println("AERODATA: Average wind = " + (String)stAeroData_.fAverageWindSpeed);
-			Serial.println("AERODATA: Blade percent = " + (String)stAeroData_.fBladePitchPercentage);
-			Serial.println("AERODATA: Rel humidity = " + (String)stAeroData_.fRelHumidity);
-			Serial.println("AERODATA: Rotor speed = " + (String)stAeroData_.fRotorSpeedRPM);
-			Serial.println("AERODATA: Temp celsius = " + (String)stAeroData_.fTempCelsius);
-			Serial.println("AERODATA: Wind speed = " + (String)stAeroData_.fWindSpeed);
-			Serial.println("AERODATA: Break status = " + (String)stAeroData_.stStatus.eBreakStatus);
-			Serial.println("AERODATA: Pitch mode = " + (String)stAeroData_.stStatus.ePitchMode);
-
 		/* Send Aero data comming from the Arduino control */
 		clCommsManagerESP8266_.vSendMessage(stAeroData_, MESSAGEID_AERODATA, Serial2);
 
 		/* Send the current control params to the Wifi module, just to show them as the default 
 		values for the fields of the IHM */
-		Serial.println("CONTROLPARAMS: Manual break = " + (String)stControlParams_.eManualBreak);
-		Serial.println("CONTROLPARAMS: Pitch mode = " + (String)stControlParams_.ePitchMode);
-		Serial.println("CONTROLPARAMS: pitch percent = " + (String)stControlParams_.fBladePitchPercentage);
-		Serial.println("CONTROLPARAMS: max rotor speed = " + (String)stControlParams_.fMaxRotorSpeedRPM);
-		Serial.println("CONTROLPARAMS: max wind speed = " + (String)stControlParams_.fMaxWindSpeed);
 		clCommsManagerESP8266_.vSendMessage(stControlParams_, MESSAGEID_CONTROLPARAMS, Serial2);
 	}
 }

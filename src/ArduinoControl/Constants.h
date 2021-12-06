@@ -26,7 +26,7 @@ const unsigned int  HC12_INITIALIZATION_DELAY_MS_UL = 80; /**< Required time bef
 const unsigned long HALL_MIN_DELAY_MS_ULL           = 2;  /**< Minimum time (millis) to get a new reading and avoid "bouncing" */
 
 /* COMMUNICATIONS CONSTANTS */
-const float COMMS_PERIOD_MS = 500.0; /**< Period for the communications loop  */
+const float COMMS_PERIOD_MS = 250.0; /**< Period for the communications loop  */
 const int   BAUD_RATE       = 9600;  /**< Baud rate for serial communications */
 
 /* TEMPERATURE/HUMIDITY SENSORS */

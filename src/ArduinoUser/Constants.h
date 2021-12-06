@@ -27,9 +27,9 @@ const float MAX_RPM_F  = 300.0f; /**< Max RPM that can be configured with the po
 const float MAX_WIND_F = 30.0f;  /**< Max wind speed that can be configured with the potentiometer */ 
 
 /* GENERIC CONSTANTS */
-const int          LCD_REFRESH_TIME_MS_UL          = 500;                /**< Refresh time for the LCD screen (milliseconds)                                      */
-const int          HC12_SEND_PERIOD_MS_UL          = 500;                /**< Time period between sending messages through HC12                                   */
-const int          ESP8266_SEND_PERIOD_MS_UL       = 500;                /**< Time period between sending messages through ESP8266                                */
+const int          LCD_REFRESH_TIME_MS_UL          = 250;                /**< Refresh time for the LCD screen (milliseconds)                                      */
+const int          HC12_SEND_PERIOD_MS_UL          = 250;                /**< Time period between sending messages through HC12                                   */
+const int          ESP8266_SEND_PERIOD_MS_UL       = 250;                /**< Time period between sending messages through ESP8266                                */
 const UserMaster_e DEFAULT_USER_MASTER_E           = USERMASTER_ARDUINO; /**< Default control master                                                              */
 const int          ANDROID_TIMEOUT_MS_UL           = 30000;              /**< Timeout to transition from Android to Arduino if no messages are received           */
 const int          COMMS_BAUD_RATE_UL              = 9600;               /**< Baud rate for serial communications                                                 */

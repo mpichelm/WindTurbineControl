@@ -125,19 +125,6 @@ void loop()
 ***************************************************************************************************/
 void vSendDataHC12() 
 {
-	// TODO: break status used to be updated here
-
-	Serial.println(">>>>>>>>>>>>> SEND DATA HC12");
-	Serial.println("Average wind = " + (String)stAeroData_.fAverageWindSpeed);
-	Serial.println("Blade percent = " + (String)stAeroData_.fBladePitchPercentage);
-	Serial.println("Rel humidity = " + (String)stAeroData_.fRelHumidity);
-	Serial.println("Rotor speed = " + (String)stAeroData_.fRotorSpeedRPM);
-	Serial.println("Temp celsius = " + (String)stAeroData_.fTempCelsius);
-	Serial.println("Wind speed = " + (String)stAeroData_.fWindSpeed);
-	Serial.println("Break status = " + (String)stAeroData_.stStatus.eBreakStatus);
-	Serial.println("Pitch mode = " + (String)stAeroData_.stStatus.ePitchMode);
-	Serial.println("-------");
-
 	/* Check if it is time to send new data */
 	if (clSenderHC12Timer_.check()) 
 	{
@@ -157,30 +144,10 @@ void vReadDataHC12()
 	/* Check if it is time to send new data */
 	while (clCommsManager_.bReadInputMessage(Serial1, aucReadingBuf_, ulMsgLength, eMsgID))
 	{
-		Serial.println("Recibido: " + (String)ulMsgLength + "  ID: " + (String)eMsgID);
 		/* Copy the buffer to the message */
 		if (eMsgID == MESSAGEID_CONTROLPARAMS)
 		{
-			// Serial.print("Address stAeroData_ : ");
-			// Serial.println((uint16_t)(&stAeroData_));
 			memcpy(&stControlParams_, aucReadingBuf_, sizeof(stControlParams_));
-			// Serial.print("Address stAeroData_ : ");
-			// Serial.println((uint16_t)(&stAeroData_));
-			// for (size_t i = 0; i < ulMsgLength; i++)
-			// {
-			// 	Serial.print(aucReadingBuf_[i], HEX);
-			// 	Serial.print(" ");
-			// }
-			// Serial.println();
-			
-
-			Serial.println("<<<<<<<<<<<<< READ DATA HC12");
-			Serial.println("Manual break = " + (String)stControlParams_.eManualBreak);
-			Serial.println("Pitch mode = " + (String)stControlParams_.ePitchMode);
-			Serial.println("pitch percent = " + (String)stControlParams_.fBladePitchPercentage);
-			Serial.println("max rotor speed = " + (String)stControlParams_.fMaxRotorSpeedRPM);
-			Serial.println("max wind speed = " + (String)stControlParams_.fMaxWindSpeed);
-			Serial.println("-------");
 		}
 	}
 }
@@ -234,21 +201,6 @@ void vAverageWindSpeed()
 void breakManagement() {
 
 	/* Check if it is necessary to break */
-	Serial.print("stAeroData_.fAverageWindSpeed: ");
-	Serial.println(stAeroData_.fAverageWindSpeed);
-
-	Serial.print("stControlParams_.fMaxWindSpeed: ");
-	Serial.println(stControlParams_.fMaxWindSpeed);
-
-	Serial.print("stAeroData_.fRotorSpeedRPM: ");
-	Serial.println(stAeroData_.fRotorSpeedRPM);
-
-	Serial.print("stControlParams_.fMaxRotorSpeedRPM: ");
-	Serial.println(stControlParams_.fMaxRotorSpeedRPM);
-
-	Serial.print("stControlParams_.eManualBreak: ");
-	Serial.println(stControlParams_.eManualBreak);
-
 	if (stAeroData_.fAverageWindSpeed > stControlParams_.fMaxWindSpeed || /* Average wind speed over threshold */
 		stAeroData_.fRotorSpeedRPM > stControlParams_.fMaxRotorSpeedRPM    || /* Rotor speed over threshold */
 		stControlParams_.eManualBreak == MANUALBREAK_ON) /* Rotor break manually requested */
@@ -296,8 +248,6 @@ void vReleaseBreak()
 {
 	/* The break is released only if the break is fully enabled (not moving) and it has been breaked
 	for a minimum time interval */
-	Serial.print("ullBreakLastRequestTimeMs_: ");
-	Serial.println(ullBreakLastRequestTimeMs_);
 	if (stAeroData_.stStatus.eBreakStatus == BREAK_ENABLED && /* Break can only be released if the system is breaked */
 		millis()-ullBreakLastRequestTimeMs_ > BREAK_MIN_ENABLED_TIME_MS ) /* Release only if passed some time from las activation request */
 	{
@@ -349,7 +299,6 @@ void vBladePitchControl()
 	if (stAeroData_.stStatus.eBreakStatus == BREAK_ENABLED ||
 		stAeroData_.stStatus.eBreakStatus == BREAK_BREAKING)
 	{
-		Serial.println("Arduino control: freno aerondinamico");
 		clPitchControlServo_.vSetExtensionPercentage(0);
 	}
 	/* If the system is not breaked, manage pitch angle */
@@ -475,17 +424,3 @@ Type_t tInterp1D(const Type_t atX[ulDataLength], const Type_t atY[ulDataLength],
 
 	return tResult;
 }
-
-
-// template <typename Type_t>
-// void printStruct(const Type_t& inputStruct)
-// {
-// 	char data[sizeof(Type_t)];
-// 	memcpy(data, &inputStruct, sizeof(Type_t));
-// 	for(int i = 0; i < sizeof(Type_t); i++)
-// 	{
-// 		Serial.print((uint8_t)data[i], DEC);
-// 		Serial.print(" ");
-// 	}
-// 	Serial.println();
-// }
