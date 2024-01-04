@@ -83,6 +83,11 @@ void setup()
 	delay(BREAK_FULL_RETRACTION_TIME_MS);
 	digitalWrite(ENABLE_BREAK_RELAY_PIN, HIGH);
 
+	/* Release brake to nominal (not braked) position */
+	digitalWrite(DISABLE_BREAK_RELAY_PIN, LOW);
+	delay(TIME_BREAK_ACT_OP_EXTENSION_MS);
+	digitalWrite(DISABLE_BREAK_RELAY_PIN, HIGH);
+
 	/* Anemometer setup */
 	attachInterrupt(digitalPinToInterrupt(ANEMOMETER_HALL_PIN), vReadAnemometerHallSensor, RISING);	
 
@@ -102,7 +107,6 @@ void loop()
 	vReadDHT22Sensor();
 
 	/* Read current wind speed and compute average wind speed */
-	//stAeroData_.fWindSpeed = 5; // TODO: remove dummy value
 	vAverageWindSpeed();
 
 	/* Read rotor speed */
@@ -362,12 +366,9 @@ void vReadAnemometerHallSensor()
 	if (millis() - ullAnemometerLastTimeMs > HALL_MIN_DELAY_MS_ULL) 
 	{
 		/* Get the angular speed of the anemometer and convert to wind speed */
-		float fAnemAngularSpeed = 2.0f * PI / static_cast<float>(TACOMETER_NUM_MAGNETS) / 
+		float fAnemAngularSpeed = 2.0f * PI / static_cast<float>(ANEMOMETER_NUM_MAGNETS) / 
 								  (millis() - ullAnemometerLastTimeMs) / MILLIS_TO_SECONDS_F; 
-		stAeroData_.fWindSpeed = 
-			tInterp1D<float, ANEM_CALIBRATION_POINTS_UC>(ANEM_CALIBRATION_ANGULAR_SPEED_DATA_F,
-										   				 ANEM_CALIBRATION_WIND_DATA_F,
-										   				 fAnemAngularSpeed);
+		stAeroData_.fWindSpeed = 0.189 * fAnemAngularSpeed ;
 
 		/* Update time of last reading */
 		ullAnemometerLastTimeMs = millis();

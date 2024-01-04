@@ -55,10 +55,5 @@ const unsigned char TACOMETER_NUM_MAGNETS  = 3; /**< Number of magnets in that h
 const unsigned int NUM_AVERAGE_WIND_SPEED_SAMPLES_UL                    = 60;   /**< Number of samples to compute the average wind speed                                   */
 const unsigned int WIND_SPEED_SAMPLE_INTERVAL_MS_UL                     = 1000; /**< Interval between wind speed samples                                                   */
 const unsigned char ANEMOMETER_NUM_MAGNETS                              = 3;    /**< Number of magnets in that hall sensor reads in a complete turn for the anemometer     */
-const unsigned char ANEM_CALIBRATION_POINTS_UC                          = 5;    /**< Number of points for the calibration curve                                            */
-float ANEM_CALIBRATION_ANGULAR_SPEED_DATA_F[ANEM_CALIBRATION_POINTS_UC] =       /**< Angular speed (rad/s) of the anemometer at which equivalence with wind speed is known */
-							{0.0f, 50.0f, 100.0f, 150.0f, 200.0f};
-float ANEM_CALIBRATION_WIND_DATA_F[ANEM_CALIBRATION_POINTS_UC]          =       /**< Wind speeds for each point in ANEM_CALIBRATION_ANGULAR_SPEED_DATA_F                   */						
-							{0.0f, 5.0f , 10.0f,  15.0f,  20.0f };
 
 #endif // CONSTANTS_H_

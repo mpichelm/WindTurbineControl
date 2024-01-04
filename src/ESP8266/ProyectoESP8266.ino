@@ -19,9 +19,9 @@ const int SERIAL_DATA_SEND_PERIOD_MS_UL           = 500;   /**< Milliseconds to 
 const int SERVER_PORT_UL                          = 80;    /**< Default port                                        */
 const unsigned char NUM_WIFI_NETWORKS             = 2;     /**< Number of known wifi networks                       */
 const std::string WIFI_SSID_AS[NUM_WIFI_NETWORKS] =        /**< SSID of known wifi networks                         */
-                {"MOVISTAR_A90E", "FTE-A458"};             
+                {"Tenda_07B540", "MOVISTAR_2610"};             
 const std::string WIFI_PASS_AS[NUM_WIFI_NETWORKS] =        /**< Password for known wifi networks                    */
-                {"e7dp6UHXQTuPR3Eye3Q3", "XXsrd7mc"};
+                {"123456789", "Q2bYmTm7xdfPkTWJyBX5"};
 
 /* COMMUNICATIONS CONSTANTS */
 const int BAUD_RATE         = 9600; /**< Baud rate for serial communications                    */
